@@ -29,7 +29,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 
-const { height: SCREEN_H } = Dimensions.get("window");
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
 function BootSplash({
   insets,
@@ -40,83 +40,41 @@ function BootSplash({
   ready: boolean;
   onDone: () => void;
 }) {
-  const containerScale = useRef(new Animated.Value(0.6)).current;
-  const containerOp = useRef(new Animated.Value(0)).current;
-  const spinCW = useRef(new Animated.Value(0)).current;
-  const spinCCW = useRef(new Animated.Value(0)).current;
-  const haloScale = useRef(new Animated.Value(1)).current;
-  const haloOp = useRef(new Animated.Value(0.3)).current;
-  const shineX = useRef(new Animated.Value(-120)).current;
+  const logoOp = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoFloat = useRef(new Animated.Value(0)).current;
+  
+  const orbit1 = useRef(new Animated.Value(0)).current;
+  const orbit2 = useRef(new Animated.Value(0)).current;
+  
+  const bgOp = useRef(new Animated.Value(0)).current;
   const fadeOut = useRef(new Animated.Value(1)).current;
   const doneRef = useRef(false);
 
   useEffect(() => {
-    // 1. Spring Entrance
+    // Reveal Background & Logo
     Animated.parallel([
-      Animated.spring(containerScale, {
-        toValue: 1,
-        tension: 40,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.timing(containerOp, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
+      Animated.timing(bgOp, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      Animated.timing(logoOp, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.spring(logoScale, { toValue: 1, tension: 20, friction: 7, useNativeDriver: true }),
     ]).start();
 
-    // 2. Loop: Clockwise Ring
-    Animated.loop(
-      Animated.timing(spinCW, {
-        toValue: 1,
-        duration: 2500,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // 3. Loop: Counter-Clockwise Ring (slower)
-    Animated.loop(
-      Animated.timing(spinCCW, {
-        toValue: 1,
-        duration: 4000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // 4. Glow Halo Pulse
+    // Floating Idle
     Animated.loop(
       Animated.sequence([
-        Animated.timing(haloScale, {
-          toValue: 1.15,
-          duration: 1200,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(haloScale, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
+        Animated.timing(logoFloat, { toValue: -12, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(logoFloat, { toValue: 0, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     ).start();
 
-    // 5. Shimmer Sweep (Regular intervals)
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(1000),
-        Animated.timing(shineX, {
-          toValue: 120,
-          duration: 900,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(shineX, { toValue: -120, duration: 0, useNativeDriver: true }),
-      ])
-    ).start();
+    // Elegant Orbits
+    const runOrbit = (v: Animated.Value, duration: number) =>
+      Animated.loop(
+        Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true })
+      ).start();
+
+    runOrbit(orbit1, 3500);
+    runOrbit(orbit2, 5000);
   }, []);
 
   useEffect(() => {
@@ -124,8 +82,8 @@ function BootSplash({
     const t = setTimeout(() => {
       Animated.timing(fadeOut, {
         toValue: 0,
-        duration: 400,
-        easing: Easing.out(Easing.quad),
+        duration: 500,
+        easing: Easing.inOut(Easing.quad),
         useNativeDriver: true,
       }).start(() => {
         doneRef.current = true;
@@ -137,88 +95,60 @@ function BootSplash({
 
   return (
     <Animated.View style={[s.screen, s.center, { opacity: fadeOut }]}>
-      <Animated.View
-        style={[
-          s.bootWrap,
-          {
-            opacity: containerOp,
-            transform: [{ scale: containerScale }],
-          },
-        ]}
-      >
-        <View style={s.premiumFrame}>
-          {/* Sonar / Halo Ring */}
-          <Animated.View
-            style={[
-              s.haloRing,
-              {
-                opacity: haloOp,
-                transform: [{ scale: haloScale }],
-              },
-            ]}
+      <Animated.View style={[s.splashBg, { opacity: bgOp }]}>
+        <View style={[s.bgBlob, s.bgBlob1]} />
+        <View style={[s.bgBlob, s.bgBlob2]} />
+      </Animated.View>
+
+      <View style={s.auraContainer}>
+        <Animated.View
+          style={[
+            s.auraRing,
+            {
+              transform: [
+                { rotateZ: orbit1.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
+                { scaleX: 1.1 },
+                { scaleY: 0.4 },
+              ],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            s.auraRing,
+            {
+              borderColor: "rgba(37, 99, 235, 0.4)",
+              transform: [
+                { rotateZ: orbit2.interpolate({ inputRange: [0, 1], outputRange: ["360deg", "0deg"] }) },
+                { scaleX: 0.5 },
+                { scaleY: 1.1 },
+              ],
+            },
+          ]}
+        />
+
+        <Animated.View
+          style={[
+            s.logoGlassPuck,
+            {
+              opacity: logoOp,
+              transform: [{ scale: logoScale }, { translateY: logoFloat }],
+            },
+          ]}
+        >
+          <Image
+            source={require("../assets/images/circlelogo.png")}
+            style={s.splashHeroLogo}
+            resizeMode="contain"
           />
+        </Animated.View>
+      </View>
 
-          {/* Counter-Clockwise Ring (Thin Outer) */}
-          <Animated.View
-            style={[
-              s.orbitRing,
-              s.ringOuter,
-              {
-                transform: [
-                  {
-                    rotate: spinCCW.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["360deg", "0deg"],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-
-          {/* Clockwise Ring (Inner) */}
-          <Animated.View
-            style={[
-              s.orbitRing,
-              s.ringInner,
-              {
-                transform: [
-                  {
-                    rotate: spinCW.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0deg", "360deg"],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={s.accentDot} />
-          </Animated.View>
-
-          {/* Main Logo Disc */}
-          <View style={s.logoDisc}>
-            <Image
-              source={require("../assets/images/circlelogo.png")}
-              style={s.splashLogo}
-              resizeMode="contain"
-            />
-            {/* Shimmer Sweep */}
-            <Animated.View
-              style={[
-                s.shimmer,
-                { transform: [{ translateX: shineX }, { rotate: "30deg" }] },
-              ]}
-            />
-          </View>
-        </View>
-
-        <View style={s.bootTexts}>
-          <Text style={s.bootTitle}>SKELP!</Text>
-          <View style={s.loadingRow}>
-            <ActivityIndicator size="small" color="#2563EB" style={{ transform: [{ scale: 0.7 }] }} />
-            <Text style={s.bootStatus}>Entering Arena…</Text>
-          </View>
+      <Animated.View style={[s.splashStatusBox, { opacity: logoOp }]}>
+        <Text style={s.splashBrandName}>SKELP!</Text>
+        <Text style={s.splashTagline}>THE ULTIMATE ARENA</Text>
+        <View style={s.miniLoader}>
+          <ActivityIndicator size="small" color="#2563EB" />
         </View>
       </Animated.View>
     </Animated.View>
@@ -287,7 +217,6 @@ export default function HomeScreen() {
               <View style={s.itemLabel}><Text style={s.itemLabelText}>CURRENT ITEM</Text></View>
               <Text style={s.itemName}>VIRAT KOHLI</Text>
               <Text style={s.itemMeta}>BATSMAN • INDIA</Text>
-              <div style={{height: 10}} />
               <View style={s.timerContainer}><Text style={s.timerLabel}>ENDING IN</Text><Text style={s.timerValue}>{timer}s</Text></View>
             </View>
             <View style={s.bidDisplay}>
@@ -401,15 +330,15 @@ const s = StyleSheet.create({
   tabText: { fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#64748B" },
   tabTextOn: { color: "#2563EB" },
   form: { gap: 8 },
-  field: {},
-  labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  field: { marginBottom: 2 },
   label: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#64748B", letterSpacing: 1.5, marginBottom: 4 },
+  labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   forgotText: { fontFamily: "Poppins_600SemiBold", fontSize: 11, color: "#2563EB" },
   inputBox: { backgroundColor: "#F8FAFC", borderWidth: 1.5, borderColor: "#E2E8F0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center" },
   inputBoxOn: { borderColor: "#2563EB", backgroundColor: "#F0F9FF" },
   input: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#1E293B" },
   toggleText: { fontFamily: "Poppins_700Bold", fontSize: 11, color: "#3B82F6" },
-  btn: { backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 14, alignItems: "center", marginTop: 4, shadowColor: "#2563EB", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  btn: { backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 14, alignItems: "center", marginTop: 4, shadowColor: "#2563EB", shadowOpacity: 0.3, shadowRadius: 10 },
   btnOff: { opacity: 0.4 },
   btnPress: { transform: [{ translateY: 2 }] },
   btnText: { fontFamily: "LuckiestGuy_400Regular", fontSize: 15, color: "#FFF" },
@@ -454,20 +383,18 @@ const s = StyleSheet.create({
   quickText: { fontFamily: "LuckiestGuy_400Regular", fontSize: 14, color: "#1E293B" },
   roomFooter: { alignItems: "center", paddingVertical: 10 },
   roomFooterText: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#94A3B8", letterSpacing: 1 },
-  
-  // Premium Splash Styles
-  bootWrap: { alignItems: "center", justifyContent: "center", gap: 20 },
-  premiumFrame: { width: 140, height: 140, alignItems: "center", justifyContent: "center" },
-  haloRing: { position: "absolute", width: 130, height: 130, borderRadius: 65, backgroundColor: "rgba(37, 99, 235, 0.12)", borderBaselineColor: "rgba(37, 99, 235, 0.05)" },
-  orbitRing: { position: "absolute", borderRadius: 999, borderWidth: 1.5, borderColor: "rgba(37, 99, 235, 0.15)" },
-  ringOuter: { width: 140, height: 140 },
-  ringInner: { width: 120, height: 120, borderColor: "rgba(37, 99, 235, 0.3)", borderTopColor: "#2563EB", borderWidth: 2.5 },
-  accentDot: { position: "absolute", top: -5, left: "50%", marginLeft: -5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#2563EB", shadowColor: "#2563EB", shadowOpacity: 0.6, shadowRadius: 8, elevation: 5 },
-  logoDisc: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, elevation: 12, overflow: "hidden" },
-  splashLogo: { width: 68, height: 68 },
-  shimmer: { position: "absolute", top: -100, left: 0, width: 40, height: 300, backgroundColor: "rgba(255,255,255,0.6)" },
-  bootTexts: { alignItems: "center", gap: 6 },
-  bootTitle: { fontFamily: "LuckiestGuy_400Regular", fontSize: 26, color: "#1C2A4A", letterSpacing: 1.5 },
-  loadingRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  bootStatus: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#64748B", letterSpacing: 0.5 },
+
+  // AURA REVEAL REDESIGN
+  splashBg: { position: "absolute", width: SCREEN_W, height: SCREEN_H },
+  bgBlob: { position: "absolute", borderRadius: 999 },
+  bgBlob1: { top: -100, left: -50, width: 300, height: 300, backgroundColor: "rgba(37, 99, 235, 0.03)" },
+  bgBlob2: { bottom: -150, right: -100, width: 400, height: 400, backgroundColor: "rgba(37, 99, 235, 0.04)" },
+  auraContainer: { width: 300, height: 300, alignItems: "center", justifyContent: "center" },
+  auraRing: { position: "absolute", width: 240, height: 240, borderRadius: 120, borderWidth: 1, borderColor: "rgba(37, 99, 235, 0.2)" },
+  logoGlassPuck: { width: 100, height: 100, borderRadius: 50, backgroundColor: "rgba(255, 255, 255, 0.8)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 15 },
+  splashHeroLogo: { width: 80, height: 80 },
+  splashStatusBox: { position: "absolute", bottom: 80, alignItems: "center" },
+  splashBrandName: { fontFamily: "LuckiestGuy_400Regular", fontSize: 32, color: "#1E293B", letterSpacing: 2 },
+  splashTagline: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#94A3B8", letterSpacing: 4, marginTop: 4 },
+  miniLoader: { marginTop: 24 },
 });
