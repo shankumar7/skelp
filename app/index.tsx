@@ -33,6 +33,7 @@ import {
   Inter_800ExtraBold,
 } from "@expo-google-fonts/inter";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -67,9 +68,9 @@ function EnhancedBackground() {
   }, []);
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: "#F8FAFC" }]}>
-      <Animated.Value style={[s.bgBlob, s.bgBlob1, { transform: blob1Pos.getTranslateTransform() }]} />
-      <Animated.Value style={[s.bgBlob, s.bgBlob2, { transform: blob2Pos.getTranslateTransform() }]} />
-      <Animated.Value style={[s.bgBlob, s.bgBlob3, { transform: blob3Pos.getTranslateTransform() }]} />
+      <Animated.View style={[s.bgBlob, s.bgBlob1, { transform: blob1Pos.getTranslateTransform() }]} />
+      <Animated.View style={[s.bgBlob, s.bgBlob2, { transform: blob2Pos.getTranslateTransform() }]} />
+      <Animated.View style={[s.bgBlob, s.bgBlob3, { transform: blob3Pos.getTranslateTransform() }]} />
       <PartialGrid />
     </View>
   );
@@ -134,56 +135,366 @@ function BootSplash({ insets, ready, onDone }: any) {
   );
 }
 
-function AboutSkelp({ onBack, insets }: { onBack: () => void; insets: any }) {
-  const fade = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(30)).current;
-  useEffect(() => { Animated.parallel([Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: true }), Animated.spring(slide, { toValue: 0, tension: 20, friction: 6, useNativeDriver: true })]).start(); }, []);
+function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets: any; fromCorner?: boolean }) {
+  const spreadScale = useRef(new Animated.Value(0)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
+  const itemSlide = [
+    useRef(new Animated.Value(40)).current,
+    useRef(new Animated.Value(40)).current,
+    useRef(new Animated.Value(40)).current,
+    useRef(new Animated.Value(40)).current,
+  ];
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(spreadScale, {
+        toValue: 1,
+        duration: 1600, // Slower for visibility
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.timing(contentFade, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.stagger(200, itemSlide.map(v => 
+          Animated.spring(v, { toValue: 0, tension: 15, friction: 8, useNativeDriver: true })
+        ))
+      ])
+    ]).start();
+  }, []);
 
   const openLink = (url: string) => Linking.openURL(url);
 
+  const circlePos: any = fromCorner 
+    ? { top: insets.top + (SCREEN_H < 800 ? 12 : 28), right: 54 } 
+    : { top: SCREEN_H / 2 - 50, left: SCREEN_W / 2 - 50 };
+
   return (
-    <Animated.View style={[s.screen, { opacity: fade }]}>
-      <FormBackground />
-      <View style={[s.flex1, { paddingHorizontal: 20, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20, justifyContent: "space-between" }]}>
-        <Animated.View style={{ transform: [{ translateY: slide }], flex: 1, justifyContent: "space-between" }}>
-          <View style={s.aboutHeader}>
-            <View style={s.aboutLogoRing}><Image source={require("../assets/images/circlelogo.png")} style={s.aboutLogoSmall} /></View>
-            <Text style={s.aboutTitle}>ABOUT SKELP!</Text>
-          </View>
-          
-          <View style={[s.aboutClayCard, { flex: 0.85, justifyContent: "space-around" }]}>
-            <View>
-              <Text style={s.aboutHeadline}>THE PREMIER IPL AUCTION ARENA</Text>
-              <Text style={s.aboutBody} numberOfLines={5} adjustsFontSizeToFit={true}>
-                Skelp! is a high-octane IPL Auction simulation platform built for professional bidders. 
-                Manage your purse, outbid rivals, and build championship squads.
-              </Text>
+    <View style={s.aboutScreen}>
+      {/* Animated Circle Spread */}
+      <Animated.View 
+        style={[
+          s.aboutSpreadCircle, 
+          circlePos,
+          { 
+            transform: [
+              { scale: spreadScale.interpolate({ inputRange: [0, 1], outputRange: [0, 30] }) }
+            ] 
+          }
+        ]} 
+      />
+      
+      <Animated.View style={[s.flex1, { opacity: contentFade, zIndex: 1 }]}>
+        {/* Navigation Bar / Header */}
+        <View style={[s.aboutHeader, { paddingTop: insets.top + 10 }]}>
+          <Pressable onPress={onBack} style={s.aboutHeaderBackBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          </Pressable>
+          <View style={{ width: 44 }} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={[s.aboutScrollContent, { paddingBottom: insets.bottom + 40 }]}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          {/* Main Hero Section */}
+          <Animated.View style={[s.aboutHero, { transform: [{ translateY: itemSlide[0] }] }]}>
+            <View style={s.aboutLogoRing}>
+              <Image source={require("../assets/images/circlelogo.png")} style={s.aboutLogoFull} resizeMode="contain" />
+            </View>
+            <Text style={s.aboutHeroTitle}>SKELP!</Text>
+            <View style={s.aboutStatusRow}>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E0E7FF' }]}><Text style={[s.aboutStatusText, { color: '#4338CA' }]}>V1.0</Text></View>
+            </View>
+          </Animated.View>
+
+          {/* Description Section */}
+          <Animated.View style={[s.aboutInfoCard, { transform: [{ translateY: itemSlide[1] }] }]}>
+            <Text style={s.aboutInfoHeadline}>ULTIMATE IPL AUCTION ARENA</Text>
+            <Text style={s.aboutInfoBody}>
+              Skelp! is designed for the elite bidders who demand speed, precision, and an immersive arena experience.
+              {"\n\n"}
+              Whether you're scouting players for a local league or hosting a full-scale online auction, Skelp! delivers professional tools to manage purses, track bids, and secure your dream team.
+            </Text>
+          </Animated.View>
+
+          {/* Developer Section */}
+          <Animated.View style={[s.aboutDevCard, { transform: [{ translateY: itemSlide[2] }] }]}>
+            <Text style={s.aboutDevLabel}>CRAFTED BY</Text>
+
+            <Text style={s.aboutDevNameHero} numberOfLines={1} adjustsFontSizeToFit={true}>PITTA SHANKUMAR</Text>
+
+            <View style={s.aboutSocialRowSingle}>
+              {[
+                { n: "logo-github", c: "#334155", l: "https://github.com/shankumar7" },
+                { n: "logo-linkedin", c: "#0077B5", l: "https://www.linkedin.com/in/shankumar7/" },
+                { n: "mail", c: "#EF4444", l: "mailto:shankumarpitta714@gmail.com" },
+                { n: "logo-twitter", c: "#000", l: "https://x.com/shankumar_7" },
+                { n: "logo-instagram", c: "#E4405F", l: "https://www.instagram.com/shankumar_7/" }
+              ].map((scl, i) => (
+                <Pressable key={i} onPress={() => openLink(scl.l)} style={s.aboutSocialIconHero}>
+                  <Ionicons name={scl.n as any} size={18} color={scl.c} />
+                </Pressable>
+              ))}
             </View>
 
-            <View style={s.featureGrid}>
-              <View style={s.aboutFeatureRow}><View style={[s.aboutFeatureDot, { backgroundColor: "#10B981" }]} /><Text style={s.aboutFeatureItem}>FULL ONLINE & OFFLINE</Text></View>
-              <View style={s.aboutFeatureRow}><View style={[s.aboutFeatureDot, { backgroundColor: "#3B82F6" }]} /><Text style={s.aboutFeatureItem}>LIVE AUCTION ENGINE</Text></View>
-              <View style={s.aboutFeatureRow}><View style={[s.aboutFeatureDot, { backgroundColor: "#F59E0B" }]} /><Text style={s.aboutFeatureItem}>ELITE PLAYER BIDDING</Text></View>
-              <View style={s.aboutFeatureRow}><View style={[s.aboutFeatureDot, { backgroundColor: "#8B5CF6" }]} /><Text style={s.aboutFeatureItem}>PREMIUM CLAY UI</Text></View>
-            </View>
+            <Text style={s.aboutDevBioHero}>Friendly Neighbourhood Developer</Text>
+          </Animated.View>
+        </ScrollView>
+      </Animated.View>
+    </View>
+  );
+}
 
-            <View style={s.devSection}>
-              <Text style={s.devLabel}>DEVELOPED BY</Text>
-              <Text style={s.devName}>PITTA SHANKUMAR</Text>
-              <View style={s.socialRow}>
-                <Pressable onPress={() => openLink("https://github.com/shankumar7")} style={s.socialIconBox}><Ionicons name="logo-github" size={20} color="#334155" /></Pressable>
-                <Pressable onPress={() => openLink("https://www.linkedin.com/in/shankumar7/")} style={s.socialIconBox}><Ionicons name="logo-linkedin" size={20} color="#0077B5" /></Pressable>
-                <Pressable onPress={() => openLink("mailto:shankumarpitta714@gmail.com")} style={s.socialIconBox}><Ionicons name="mail" size={20} color="#EF4444" /></Pressable>
-                <Pressable onPress={() => openLink("https://x.com/shankumar_7")} style={s.socialIconBox}><Ionicons name="logo-twitter" size={18} color="#1DA1F2" /></Pressable>
-                <Pressable onPress={() => openLink("https://www.instagram.com/shankumar_7/")} style={s.socialIconBox}><Ionicons name="logo-instagram" size={20} color="#E4405F" /></Pressable>
-              </View>
-            </View>
-          </View>
-
-          <AnimatedPressable style={[s.premiumSubmitBtn, { marginTop: 10 }]} onPress={onBack}><Text style={s.premiumSubmitBtnText}>GOT IT!</Text></AnimatedPressable>
-        </Animated.View>
+function MainArenaView({ insets, onExit, name, avatar, timer, currentBid, onBid }: any) {
+  const [activeTab, setActiveTab] = useState("BID");
+  return (
+    <View style={[s.screen, { backgroundColor: "#F8FAFC" }]}>
+      
+      {/* Room Header */}
+      <View style={[s.roomHeader, { paddingTop: insets.top, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }]}>
+        <Pressable onPress={onExit} style={s.arenaBackBtn}><Ionicons name="close" size={24} color="#1E293B" /></Pressable>
+        <View style={s.arenaTitleBox}><Text style={[s.arenaCode, { color: '#1E293B' }]}>ARENA #402</Text><View style={s.arenaStatus}><View style={s.arenaDot} /><Text style={s.arenaLiveText}>LIVE</Text></View></View>
+        <View style={[s.arenaUserBox, { overflow: 'hidden' }]}><Ionicons name={avatar as any} size={22} color="#FFF" /></View>
       </View>
-    </Animated.View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Player Card Section */}
+        <View style={s.arenaPlayerSection}>
+          <LinearGradient colors={['#2563EB', '#1E40AF']} style={s.arenaPlayerCard}>
+            <View style={s.arenaPlayerImagePlaceholder}><Ionicons name="person" size={120} color="rgba(255,255,255,0.08)" /></View>
+            <View style={s.arenaPlayerInfo}>
+              <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>OVERSEAS BATSMAN</Text></View>
+              <Text style={s.arenaPlayerName}>STEVE SMITH</Text>
+              <Text style={s.arenaPlayerMeta}>AUSTRALIA • 34YRS • BASE: ₹2.0 Cr</Text>
+            </View>
+            <View style={s.arenaTimerBox}>
+              <Text style={s.arenaTimerLabel}>CLOSING IN</Text>
+              <Text style={s.arenaTimerVal}>{timer}s</Text>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Bidding Stats */}
+        <View style={s.arenaStatsRow}>
+          <View style={s.arenaStatItem}><Text style={s.arenaStatLabel}>CURRENT BID</Text><Text style={s.arenaStatPrice}>₹{currentBid.toLocaleString()}</Text></View>
+          <View style={s.arenaStatDivider} />
+          <View style={s.arenaStatItem}><Text style={s.arenaStatLabel}>HIGHEST BIDDER</Text><Text style={s.arenaStatOwner}>ARYAN (YOU)</Text></View>
+        </View>
+
+        {/* Tabs / Logs Section */}
+        <View style={s.arenaLogHeader}>
+          {["BID", "STATS", "SQUAD"].map(t => (
+            <Pressable key={t} onPress={() => setActiveTab(t)} style={[s.arenaTabBtn, activeTab === t && s.arenaTabBtnOn]}>
+              <Text style={[s.arenaTabText, activeTab === t && s.arenaTabTextOn]}>{t}S</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={s.arenaLogContainer}>
+          {activeTab === "BID" ? (
+            <View style={{ gap: 12 }}>
+              {[
+                { n: "SHANKUMAR", b: "+₹5.0 L", t: "2s ago", c: "#22C55E" },
+                { n: "ARYAN", b: "+₹2.0 L", t: "5s ago", c: "#2563EB" },
+                { n: "ANIKA", b: "+₹1.0 L", t: "12s ago", c: "#64748B" }
+              ].map((log, i) => (
+                <View key={i} style={s.arenaLogItem}>
+                  <View style={s.row}><View style={[s.arenaLogDot, { backgroundColor: log.c }]} /><Text style={s.arenaLogUser}>{log.n}</Text></View>
+                  <Text style={s.arenaLogPrice}>{log.b}</Text>
+                  <Text style={s.arenaLogTime}>{log.t}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={s.arenaComingSoon}><Text style={s.arenaComingSoonText}>{activeTab} DATA LOADING...</Text></View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Floating Bidding Controls */}
+      <View style={[s.arenaActionWrapper, { paddingBottom: insets.bottom + 10, backgroundColor: 'rgba(255, 255, 255, 0.95)', borderTopColor: '#F1F5F9' }]}>
+        <View style={s.arenaBidOptions}>
+          {[2, 5, 10].map(val => (
+            <Pressable key={val} onPress={() => onBid(val * 100000)} style={s.arenaQuickBid}>
+              <Text style={s.arenaQuickBidText}>+₹{val}L</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable onPress={() => onBid(100000)} style={s.arenaMainBid}>
+          <LinearGradient colors={['#22C55E', '#16A34A']} start={{x:0, y:0}} end={{x:1, y:1}} style={s.arenaBidGradient}>
+            <Text style={s.arenaBidBtnText}>PLACE BID +₹1.0 L</Text>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function MainDashboard({ onJoin, onLogout, insets, name, avatar, opacity }: { onJoin: () => void; onLogout: () => void; insets: any; name: string; avatar: string; opacity: any }) {
+  const dashAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(dashAnim, { toValue: 1, duration: 1000, useNativeDriver: true }).start();
+  }, []);
+
+  const slideUp = (delay: number) => ({
+    opacity: dashAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+    transform: [{
+      translateY: dashAnim.interpolate({ inputRange: [0, 1], outputRange: [20 + delay / 10, 0] })
+    }]
+  });
+
+  return (
+    <View style={[s.screen, { backgroundColor: "#F1F5F9" }]}>
+      {/* Header */}
+      <View style={[s.dashHeader, { paddingTop: insets.top + 10 }]}>
+        <View style={s.row}>
+          <View style={s.dashUserCircle}><Ionicons name={avatar as any} size={28} color="#2563EB" /></View>
+          <View style={{ marginLeft: 12 }}>
+            <Text style={s.dashGreeting}>WELCOME BACK,</Text>
+            <Text style={s.dashName}>{name ? name.toUpperCase() : "SOLO PLAYER"}</Text>
+          </View>
+        </View>
+        <Pressable onPress={onLogout} style={s.dashLogout}><Ionicons name="log-out-outline" size={24} color="#64748B" /></Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        
+        {/* Search */}
+        <Animated.View style={[s.dashSearchBox, slideUp(0)]}>
+          <Ionicons name="search" size={20} color="#94A3B8" />
+          <Text style={s.dashSearchPlaceholder}>ENTER ARENA CODE...</Text>
+        </Animated.View>
+
+        {/* Hero CTA */}
+        <Animated.View style={[s.dashJoinHero, slideUp(100)]}>
+          <LinearGradient colors={['#2563EB', '#1D4ED8']} start={{x:0, y:0}} end={{x:1, y:1}} style={s.dashJoinGradient}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.dashJoinTitle}>JOIN PUBLIC ARENA</Text>
+              <Text style={s.dashJoinSub}>FIND THE BEST CRIC TALENTS</Text>
+            </View>
+            <View style={s.dashJoinArrow}><Ionicons name="arrow-forward" size={24} color="#FFF" /></View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Horizontal Auctions */}
+        <View style={s.dashSectionHeader}>
+          <Text style={s.dashSectionTitle}>LIVE AUCTIONS</Text>
+          <Pressable><Text style={s.dashViewAll}>DISCOVER ALL</Text></Pressable>
+        </View>
+
+        <Animated.View style={slideUp(200)}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
+            {[
+              { t: "MEGA AUCTION 2026", s: "48 PLY", b: "₹2.4 Cr", l: true, tag: "HOT" },
+              { t: "PREMIER LEAGUE V1", s: "12 PLY", b: "₹88 L", l: false, tag: "NEW" },
+              { t: "CLASH OF TITANS", s: "6 PLY", b: "₹1.1 Cr", l: true, tag: "LIVE" }
+            ].map((auc, i) => (
+              <Pressable key={i} onPress={onJoin} style={s.dashAucCard}>
+                <View style={[s.dashAucBadge, !auc.l && { backgroundColor: '#F1F5F9' }]}>
+                  <Text style={[s.dashAucBadgeText, !auc.l && { color: '#64748B' }]}>{auc.tag}</Text>
+                </View>
+                <Text style={s.dashAucTitle} numberOfLines={2}>{auc.t}</Text>
+                <View style={s.dashAucMeta}>
+                  <Ionicons name="people-outline" size={12} color="#64748B" />
+                  <Text style={s.dashAucStat}>{auc.s}</Text>
+                  <View style={s.dashAucDot} />
+                  <Ionicons name="wallet-outline" size={12} color="#64748B" />
+                  <Text style={s.dashAucStat}>{auc.b}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
+        {/* Stats Row */}
+        <View style={s.dashSectionHeader}>
+          <Text style={s.dashSectionTitle}>YOUR PERFORMANCE</Text>
+        </View>
+
+        <Animated.View style={[s.dashStatsRow, slideUp(300)]}>
+          <View style={s.dashStatBox}><Text style={s.dashStatVal}>12</Text><Text style={s.dashStatLab}>WINS</Text></View>
+          <View style={s.dashStatBox}><Text style={s.dashStatVal}>₹14M</Text><Text style={s.dashStatLab}>SPENT</Text></View>
+          <View style={s.dashStatBox}><Text style={s.dashStatVal}>92%</Text><Text style={s.dashStatLab}>WIN RATE</Text></View>
+        </Animated.View>
+
+        {/* Leaderboard/Social */}
+        <View style={s.dashSectionHeader}>
+          <Text style={s.dashSectionTitle}>TOP BIDDERS</Text>
+        </View>
+
+        <Animated.View style={[s.dashLeaderboard, slideUp(400)]}>
+          {[
+            { n: "ARYAN", p: "42k", a: "planet" },
+            { n: "SHANKUMAR", p: "38k", a: "shield-checkmark" },
+            { n: "ANIKA", p: "31k", a: "flash" }
+          ].map((user, i) => (
+            <View key={i} style={s.dashLeaderItem}>
+              <View style={s.row}>
+                <Text style={s.dashRank}>{i+1}</Text>
+                <View style={s.dashLeaderAvatar}><Ionicons name={user.a as any} size={16} color="#2563EB" /></View>
+                <Text style={s.dashLeaderName}>{user.n}</Text>
+              </View>
+              <Text style={s.dashPoints}>{user.p} PTS</Text>
+            </View>
+          ))}
+        </Animated.View>
+
+        {/* Create CTA */}
+        <Animated.View style={[slideUp(500), { marginTop: 24 }]}>
+          <Pressable style={s.dashCreateBtn}>
+            <View style={s.dashCreateIconBox}><Ionicons name="add" size={20} color="#FFF" /></View>
+            <Text style={s.dashCreateText}>HOST YOUR OWN ARENA</Text>
+          </Pressable>
+        </Animated.View>
+
+      </ScrollView>
+    </View>
+  );
+}
+
+
+
+function AvatarSelectionScreen({ insets, onSelect, name }: any) {
+  const avatars = [
+    { n: "shield-checkmark", c: "#2563EB", t: "GUARDIAN" },
+    { n: "flash", c: "#10B981", t: "SPEED" },
+    { n: "trophy", c: "#EAB308", t: "CHAMP" },
+    { n: "rocket", c: "#F59E0B", t: "MOONER" },
+    { n: "skull", c: "#475569", t: "FINISH" },
+    { n: "heart", c: "#EF4444", t: "FAVE" },
+    { n: "planet", c: "#EC4899", t: "PLANET" },
+    { n: "construct", c: "#0EA5E9", t: "ARCHI" },
+    { n: "thunderstorm", c: "#6366F1", t: "STORM" },
+    { n: "eye", c: "#334155", t: "ANALYST" }
+  ];
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(30)).current;
+  useEffect(() => { Animated.parallel([Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }), Animated.spring(slide, { toValue: 0, tension: 20, friction: 6, useNativeDriver: true })]).start(); }, []);
+  return (
+    <View style={s.screen}>
+      <FormBackground />
+      <Animated.View style={[s.flex1, { opacity: fade, transform: [{ translateY: slide }], paddingTop: insets.top + (SCREEN_H * 0.08), paddingHorizontal: 24 }]}>
+        <View style={s.avatarHeader}><Text style={s.avatarTitle}>PLAYER SELECT</Text><Text style={s.avatarSub}>{name.toUpperCase()}, ASSIGN YOUR ARENA IDENTITY</Text></View>
+        <View style={s.avatarGrid}>{avatars.map((av, idx) => {
+          const isSel = selectedIdx === idx;
+          return (
+            <Pressable key={idx} onPress={() => setSelectedIdx(idx)} style={[s.avatarItem, isSel && s.avatarItemOn]}>
+              <View style={[s.avatarIconCircle, { backgroundColor: "#FFF", borderColor: isSel ? av.c : av.c + "40", borderWidth: isSel ? 2 : 1 }]}><Ionicons name={av.n as any} size={28} color={av.c} /></View>
+              <Text style={[s.avatarMiniTag, { color: av.c }, isSel && { fontFamily: 'Inter_800ExtraBold' }]}>{isSel ? "READY" : av.t}</Text>
+            </Pressable>
+          );
+        })}</View>
+        <View style={s.avatarFooter}>
+          {selectedIdx !== null && (
+            <AnimatedPressable style={s.premiumSubmitBtn} onPress={() => onSelect(avatars[selectedIdx].n, selectedIdx)}>
+              <Text style={s.premiumSubmitBtnText}>ENTER ARENA</Text>
+            </AnimatedPressable>
+          )}
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -221,7 +532,7 @@ function WelcomeGreeting({ onLogin, onSignUp, onGuest, insets, onAbout }: any) {
   useEffect(() => {
     Animated.sequence([Animated.parallel([Animated.spring(logoScale, { toValue: 1, damping: 12, useNativeDriver: true }), Animated.timing(titleOp, { toValue: 1, duration: 600, useNativeDriver: true }), Animated.timing(titleSlide, { toValue: 0, duration: 600, easing: Easing.out(Easing.back(1)), useNativeDriver: true })]), Animated.parallel([Animated.timing(btnOp, { toValue: 1, duration: 800, useNativeDriver: true }), Animated.stagger(150, btnY.map(v => Animated.timing(v, { toValue: 0, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true })))])]).start();
     Animated.loop(Animated.sequence([Animated.timing(glint, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }), Animated.delay(1000), Animated.timing(glint, { toValue: 0, duration: 0, useNativeDriver: true })])).start();
-    Animated.loop(Animated.sequence([Animated.timing(logoPulse, { toValue: 1.04, duration: 2500, easing: Easing.inOut(Easing.Sin), useNativeDriver: true }), Animated.timing(logoPulse, { toValue: 1, duration: 2500, easing: Easing.inOut(Easing.Sin), useNativeDriver: true })])).start();
+    Animated.loop(Animated.sequence([Animated.timing(logoPulse, { toValue: 1.04, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }), Animated.timing(logoPulse, { toValue: 1, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true })])).start();
   }, []);
   return (
     <View style={[s.screen, { paddingTop: Math.max(insets.top, 50), paddingBottom: Math.max(insets.bottom, 40) }]}>
@@ -250,39 +561,64 @@ export default function HomeScreen() {
   const [showAbout, setShowAbout] = useState(false);
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [bootDone, setBootDone] = useState(false);
   const [currentBid, setCurrentBid] = useState(2400);
   const [timer, setTimer] = useState(38);
+  const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState("shield-checkmark");
+  const [selectedAvatarIdx, setSelectedAvatarIdx] = useState(0);
+  const [aboutFromCorner, setAboutFromCorner] = useState(false);
+  const [inArena, setInArena] = useState(false);
   const contentOp = useRef(new Animated.Value(0)).current;
   useEffect(() => { if (fontsLoaded && bootDone && connected) Animated.timing(contentOp, { toValue: 1, duration: 600, useNativeDriver: true }).start(); }, [fontsLoaded, bootDone, connected]);
   if (!fontsLoaded || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded} onDone={() => setBootDone(true)} />;
-  const handleAuth = () => setIsAuthenticating(true);
-  const onAuthDone = () => { setIsAuthenticating(false); setConnected(true); };
-  const disconnect = () => { setConnected(false); setShowGreeting(true); };
-  if (showAbout) return <AboutSkelp onBack={() => setShowAbout(false)} insets={insets} />;
+  const handleAuth = () => {
+    if (isLogin) {
+      setIsAuthenticating(true);
+    } else {
+      setIsSelectingAvatar(true);
+    }
+  };
+  const onAuthDone = () => {
+    // NOTE: This is where you will integrate Firebase Authentication and Firestore.
+    // Data ready for storage:
+    // { username: displayName, email: email, password: password, avatarIndex: selectedAvatarIdx }
+    setIsAuthenticating(false);
+    setConnected(true);
+  };
+  const disconnect = () => { setConnected(false); setInArena(false); setShowGreeting(true); };
+  if (showAbout) return <AboutSkelp onBack={() => setShowAbout(false)} insets={insets} fromCorner={aboutFromCorner} />;
+  if (isSelectingAvatar) return <AvatarSelectionScreen insets={insets} onSelect={(icon: string, idx: number) => { setSelectedAvatar(icon); setSelectedAvatarIdx(idx); setIsSelectingAvatar(false); setIsAuthenticating(true); }} name={displayName} />;
   if (isAuthenticating) return <AuthenticatingScreen onFinish={onAuthDone} name={displayName} />;
+  
   if (connected) {
-    return (
-      <View style={[s.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <EnhancedBackground />
-        <Animated.View style={[s.flex1, { opacity: contentOp }]}>
-          <View style={s.roomHeader}><Pressable onPress={disconnect} style={s.backBtn}><Text style={s.backText}>LEAVE</Text></Pressable><View style={s.roomInfo}><Text style={s.roomTitle}>ARENA #402</Text><View style={s.liveBadge}><View style={s.dot} /><Text style={s.liveText}>LIVE</Text></View></View><View style={[s.clayMiniUser]}><Text style={s.userInitial}>{displayName?.[0] || "U"}</Text></View></View>
-          <View style={s.mainArena}><View style={s.itemCard}><View style={s.itemLabel}><Text style={s.itemLabelText}>CURRENT ITEM</Text></View><Text style={s.itemName}>STEVE SMITH</Text><Text style={s.itemMeta}>BATSMAN • AUSTRALIA</Text><View style={s.timerContainer}><Text style={s.timerLabel}>ENDING IN</Text><Text style={s.timerValue}>{timer}s</Text></View></View><View style={s.bidDisplay}><Text style={s.bidTitle}>CURRENT BID</Text><Text style={s.bidVal}>₹{currentBid.toLocaleString()}</Text></View><Pressable onPress={() => setCurrentBid(prev => prev + 100)} style={s.clayBidBtn}><Text style={s.clayBidBtnText}>PLACE BID +₹100</Text></Pressable></View>
-        </Animated.View>
-      </View>
-    );
+    if (inArena) {
+      return (
+        <MainArenaView 
+          insets={insets} 
+          onExit={() => setInArena(false)} 
+          name={displayName} 
+          avatar={selectedAvatar} 
+          timer={timer} 
+          currentBid={currentBid} 
+          onBid={(val: number) => setCurrentBid(p => p + val)}
+        />
+      );
+    }
+    return <MainDashboard onJoin={() => setInArena(true)} onLogout={disconnect} insets={insets} name={displayName} avatar={selectedAvatar} opacity={contentOp} />;
   }
-  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setShowGreeting(false); }} onGuest={() => { handleAuth(); setDisplayName("Guest"); setShowGreeting(false); }} onAbout={() => setShowAbout(true)} />;
-  return <LoginScreen isLogin={isLogin} setIsLogin={setIsLogin} handleAuth={handleAuth} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} onBack={() => setShowGreeting(true)} onAbout={() => setShowAbout(true)} />;
+  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setShowGreeting(false); }} onGuest={() => { setIsLogin(false); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); setShowGreeting(false); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
+  return <LoginScreen isLogin={isLogin} setIsLogin={setIsLogin} handleAuth={handleAuth} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
 }
 
-function LoginScreen({ isLogin, setIsLogin, handleAuth, insets, password, setPassword, displayName, setDisplayName, onBack, onAbout }: any) {
+function LoginScreen({ isLogin, setIsLogin, handleAuth, insets, password, setPassword, displayName, setDisplayName, email, setEmail, onBack, onAbout }: any) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
   useEffect(() => { fade.setValue(0); slide.setValue(20); Animated.parallel([Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }), Animated.spring(slide, { toValue: 0, tension: 25, friction: 6, useNativeDriver: true })]).start(); }, [isLogin]);
-  const canSubmit = displayName.trim() && password.trim();
+  const canSubmit = isLogin ? (displayName.trim() && password.trim()) : (displayName.trim() && password.trim() && email.trim());
   return (
     <View style={s.screen}>
       <FormBackground />
@@ -294,6 +630,24 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, insets, password, setPas
               <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: "#2563EB" }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
               <Text style={s.expansiveSub}>{isLogin ? "Welcome Back to the Arena!" : "Join the world's most elite arena"}</Text>
               <View style={s.clayForm}>
+                {!isLogin && (
+                  <View style={s.clayField}>
+                    <Text style={s.clayLabel}>EMAIL ID</Text>
+                    <View style={[s.premiumClayInput, focusedField === "email" && s.premiumClayInputOn]}>
+                      <TextInput 
+                        placeholder="Your email address" 
+                        placeholderTextColor="#64748B" 
+                        value={email} 
+                        onChangeText={setEmail} 
+                        onFocus={() => setFocusedField("email")} 
+                        onBlur={() => setFocusedField(null)} 
+                        style={s.clayInputInner} 
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  </View>
+                )}
                 <View style={s.clayField}><Text style={s.clayLabel}>USERNAME</Text><View style={[s.premiumClayInput, focusedField === "name" && s.premiumClayInputOn]}><TextInput placeholder={isLogin ? "Your username" : "Create username"} placeholderTextColor="#64748B" value={displayName} onChangeText={setDisplayName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /></View></View>
                 <View style={s.clayField}><Text style={s.clayLabel}>PASSWORD</Text><View style={[s.premiumClayInput, focusedField === "pw" && s.premiumClayInputOn]}><TextInput placeholder="Password" placeholderTextColor="#64748B" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} onFocus={() => setFocusedField("pw")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /><Pressable onPress={() => setShowPassword(!showPassword)}><Text style={s.clayToggleText}>{showPassword ? "HIDE" : "SHOW"}</Text></Pressable></View></View>
                 <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}><Text style={s.premiumSubmitBtnText}>{isLogin ? "LOG IN" : "SIGN UP"}</Text></AnimatedPressable>
@@ -310,14 +664,13 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, insets, password, setPas
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F7F9FC" },
+  screen: { flex: 1, backgroundColor: "#F7F9FC", overflow: "hidden" },
   center: { justifyContent: "center", alignItems: "center" },
   flex1: { flex: 1 },
   bgBlob: { position: "absolute", borderRadius: 999 },
   bgBlob1: { width: 300, height: 300, backgroundColor: "rgba(37, 99, 235, 0.08)" },
   bgBlob2: { width: 400, height: 400, backgroundColor: "rgba(37, 99, 235, 0.1)" },
   bgBlob3: { width: 250, height: 250, backgroundColor: "rgba(99, 102, 241, 0.06)" },
-  gridOverlay: { ...StyleSheet.absoluteFillObject, opacity: 0.15 },
   gridLineV: { position: "absolute", width: 1.2 },
   gridLineH: { position: "absolute", height: 1.2 },
   formLightBlob: { position: "absolute", width: 400, height: 400, borderRadius: 200 },
@@ -402,20 +755,119 @@ const s = StyleSheet.create({
   bidVal: { fontFamily: "LuckiestGuy_400Regular", fontSize: 64, color: "#2563EB" },
   clayBidBtn: { backgroundColor: "#22C55E", paddingVertical: 20, borderRadius: 28, alignItems: "center", shadowColor: "#22C55E", shadowOpacity: 0.4, shadowRadius: 15, elevation: 12, borderBottomWidth: 8, borderBottomColor: "rgba(0,0,0,0.15)" },
   clayBidBtnText: { fontFamily: "LuckiestGuy_400Regular", fontSize: 24, color: "#FFF" },
-  aboutHeader: { alignItems: "center", marginBottom: 16 },
-  aboutLogoRing: { width: 70, height: 70, borderRadius: 35, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", shadowColor: "#2563EB", shadowOpacity: 0.12, shadowRadius: 15, elevation: 8, borderBottomWidth: 4, borderBottomColor: "#F1F5F9" },
-  aboutLogoSmall: { width: 44, height: 44 },
-  aboutTitle: { fontFamily: "LuckiestGuy_400Regular", fontSize: 22, color: "#1E293B", marginTop: 10, letterSpacing: 2 },
-  aboutClayCard: { backgroundColor: "#FFF", borderRadius: 32, padding: 22, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 15, elevation: 6, borderBottomWidth: 8, borderBottomColor: "#E2E8F0" },
-  aboutHeadline: { fontFamily: "Inter_800ExtraBold", fontSize: 11, color: "#2563EB", letterSpacing: 1.5, marginBottom: 8 },
-  aboutBody: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#64748B", lineHeight: 20, marginBottom: 14 },
-  featureGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, marginBottom: 16 },
-  aboutFeatureRow: { flexDirection: "row", alignItems: "center", gap: 6, width: "48%" },
-  aboutFeatureDot: { width: 5, height: 5, borderRadius: 2.5 },
-  aboutFeatureItem: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#475569", textTransform: "uppercase" },
-  devSection: { borderTopWidth: 1.5, borderTopColor: "#F1F5F9", paddingTop: 16, alignItems: "center" },
-  devLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#94A3B8", letterSpacing: 2 },
-  devName: { fontFamily: "LuckiestGuy_400Regular", fontSize: 20, color: "#334155", marginTop: 4, letterSpacing: 1 },
-  socialRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 12 },
-  socialIconBox: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 4, borderBottomWidth: 3, borderBottomColor: "#F1F5F9" },
+
+  // --- REDESIGNED ABOUT PAGE STYLES ---
+  aboutScreen: { flex: 1, backgroundColor: "#2563EB" },
+  aboutSpreadCircle: { position: "absolute", width: 100, height: 100, borderRadius: 50, backgroundColor: "#F8FAFC", zIndex: 0 },
+  aboutHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 15, zIndex: 10, backgroundColor: 'transparent' },
+  aboutHeaderBackBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
+  aboutHeaderTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 13, color: "#1E293B", letterSpacing: 4 },
+  aboutScrollContent: { paddingHorizontal: 20, paddingTop: 10 },
+  aboutHero: { alignItems: "center", marginBottom: 30 },
+  aboutLogoRing: { width: 140, height: 140, borderRadius: 70, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", shadowColor: "#2563EB", shadowOpacity: 0.1, shadowRadius: 20, elevation: 15, borderBottomWidth: 10, borderBottomColor: "#F1F5F9" },
+  aboutLogoFull: { width: 90, height: 90 },
+  aboutHeroTitle: { fontFamily: "LuckiestGuy_400Regular", fontSize: 64, color: "#2563EB", marginTop: 20, letterSpacing: 4 },
+  aboutStatusRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  aboutStatusPill: { backgroundColor: "rgba(34, 197, 94, 0.12)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  aboutStatusText: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#15803D", letterSpacing: 1.5 },
+  aboutInfoCard: { backgroundColor: "#FFF", borderRadius: 32, padding: 28, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 20, elevation: 5, marginBottom: 20 },
+  aboutInfoHeadline: { fontFamily: "Inter_800ExtraBold", fontSize: 13, color: "#94A3B8", letterSpacing: 2, marginBottom: 12 },
+  aboutInfoBody: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "#334155", lineHeight: 26 },
+  aboutDevCard: { backgroundColor: "#FFF", borderRadius: 32, padding: 30, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 20, elevation: 5, alignItems: "center", width: '100%' },
+  aboutDevLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: "#94A3B8", letterSpacing: 4, marginBottom: 12 },
+  aboutDevNameHero: { fontFamily: "LuckiestGuy_400Regular", fontSize: 36, color: "#1E293B", letterSpacing: 1.5, textAlign: 'center', marginBottom: 20, width: '100%' },
+  aboutSocialRowSingle: { flexDirection: "row", gap: 10, marginBottom: 24, justifyContent: 'center' },
+  aboutSocialIconHero: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#F8FAFC", alignItems: "center", justifyContent: "center", borderBottomWidth: 3, borderBottomColor: "#E2E8F0" },
+  aboutDevBioHero: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#64748B", textAlign: "center", lineHeight: 20 },
+  aboutPrimaryBtn: { backgroundColor: "#2563EB", paddingVertical: 20, borderRadius: 28, alignItems: "center", shadowColor: "#2563EB", shadowOpacity: 0.35, shadowRadius: 15, elevation: 12, borderBottomWidth: 8, borderBottomColor: "#1E40AF" },
+  aboutPrimaryBtnText: { fontFamily: "LuckiestGuy_400Regular", fontSize: 24, color: "#FFF", letterSpacing: 2 },
+  avatarHeader: { alignItems: "center", marginBottom: 40 },
+  avatarTitle: { fontFamily: "LuckiestGuy_400Regular", fontSize: 32, color: "#2563EB", letterSpacing: 2 },
+  avatarSub: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: "#94A3B8", letterSpacing: 4, marginTop: 4, textAlign: 'center' },
+  avatarGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12 },
+  avatarItem: { width: "18%", marginBottom: 15, alignItems: 'center' },
+  avatarIconCircle: { width: "100%", aspectRatio: 1, borderRadius: 20, borderBottomWidth: 3, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
+  avatarMiniTag: { fontFamily: 'Inter_800ExtraBold', fontSize: 6, marginTop: 4, letterSpacing: 0.5 },
+  avatarItemOn: { transform: [{ scale: 1.1 }] },
+  avatarFooter: { marginTop: 'auto', marginBottom: 40, width: '100%' },
+  dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 20, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  dashGreeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#94A3B8', letterSpacing: 2 },
+  dashName: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 22, color: '#1E293B' },
+  dashUserCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#DBEAFE' },
+  dashLogout: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
+  dashSearchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginTop: 20, borderWidth: 1, borderColor: '#E2E8F0', gap: 12 },
+  dashSearchPlaceholder: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#94A3B8' },
+  dashJoinHero: { borderRadius: 24, marginTop: 20, shadowColor: '#2563EB', shadowOpacity: 0.25, shadowRadius: 15, elevation: 12, overflow: 'hidden' },
+  dashJoinGradient: { padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dashJoinTitle: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 24, color: '#FFF', letterSpacing: 1 },
+  dashJoinSub: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#BFDBFE', letterSpacing: 2, marginTop: 4 },
+  dashJoinArrow: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  dashSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, marginBottom: 16 },
+  dashSectionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 13, color: '#94A3B8', letterSpacing: 2, textTransform: 'uppercase' },
+  dashViewAll: { fontFamily: 'Inter_700Bold', fontSize: 12, color: '#2563EB' },
+  dashAucCard: { width: 200, backgroundColor: '#FFF', borderRadius: 24, padding: 20, marginRight: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderBottomWidth: 4, borderBottomColor: '#F1F5F9' },
+  dashAucBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 16 },
+  dashAucBadgeText: { fontFamily: 'Inter_800ExtraBold', fontSize: 8, color: '#166534', letterSpacing: 1 },
+  dashAucTitle: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: '#1E293B', lineHeight: 20 },
+  dashAucMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 4 },
+  dashAucStat: { fontFamily: 'Inter_700Bold', fontSize: 11, color: '#64748B' },
+  dashAucDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginHorizontal: 4 },
+  dashStatsRow: { flexDirection: 'row', gap: 12 },
+  dashStatBox: { flex: 1, backgroundColor: '#FFF', borderRadius: 24, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderBottomWidth: 3, borderBottomColor: '#F8FAFC' },
+  dashStatVal: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 24, color: '#2563EB' },
+  dashStatLab: { fontFamily: 'Inter_800ExtraBold', fontSize: 8, color: '#94A3B8', letterSpacing: 1, marginTop: 4 },
+  dashLeaderboard: { backgroundColor: '#FFF', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 20, elevation: 3 },
+  dashLeaderItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  dashRank: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 16, color: '#94A3B8', width: 24 },
+  dashLeaderAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  dashLeaderName: { fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#1E293B' },
+  dashPoints: { fontFamily: 'Inter_800ExtraBold', fontSize: 11, color: '#2563EB' },
+  dashCreateBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 24, padding: 10, paddingLeft: 10, borderBottomWidth: 4, borderBottomColor: '#F1F5F9', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
+  dashCreateIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center' },
+  dashCreateText: { fontFamily: 'Inter_800ExtraBold', fontSize: 12, color: '#1E293B', marginLeft: 16, letterSpacing: 1 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  arenaBackBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  arenaTitleBox: { alignItems: 'center' },
+  arenaCode: { fontFamily: 'Inter_800ExtraBold', fontSize: 13, color: '#1E293B', letterSpacing: 2 },
+  arenaStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  arenaDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  arenaLiveText: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#22C55E', letterSpacing: 1 },
+  arenaUserBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: 'rgba(0,0,0,0.2)' },
+  arenaPlayerSection: { paddingHorizontal: 20, marginTop: 10 },
+  arenaPlayerCard: { borderRadius: 32, padding: 30, shadowColor: '#2563EB', shadowOpacity: 0.15, shadowRadius: 20, elevation: 15, overflow: 'hidden' },
+  arenaPlayerImagePlaceholder: { position: 'absolute', right: -20, bottom: -20, opacity: 0.3 },
+  arenaPlayerInfo: { marginTop: 40 },
+  arenaCategoryBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, alignSelf: 'flex-start', marginBottom: 16 },
+  arenaCategoryText: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#FFF' },
+  arenaPlayerName: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 42, color: '#FFF', letterSpacing: 2 },
+  arenaPlayerMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#FFF', marginTop: 4, opacity: 0.8 },
+  arenaTimerBox: { position: 'absolute', right: 20, top: 40, alignItems: 'center' },
+  arenaTimerLabel: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#FECACA', letterSpacing: 1 },
+  arenaTimerVal: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 32, color: '#FFF' },
+  arenaStatsRow: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 20, borderRadius: 24, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
+  arenaStatItem: { flex: 1, alignItems: 'center' },
+  arenaStatLabel: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#94A3B8', letterSpacing: 1, marginBottom: 4 },
+  arenaStatPrice: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 24, color: '#2563EB' },
+  arenaStatOwner: { fontFamily: 'Poppins_700Bold', fontSize: 13, color: '#1E293B' },
+  arenaStatDivider: { width: 1, height: '60%', backgroundColor: '#F1F5F9' },
+  arenaLogHeader: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 30, gap: 12 },
+  arenaTabBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 5, elevation: 1 },
+  arenaTabBtnOn: { backgroundColor: '#2563EB' },
+  arenaTabText: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, color: '#94A3B8', letterSpacing: 1 },
+  arenaTabTextOn: { color: '#FFF' },
+  arenaLogContainer: { paddingHorizontal: 24, marginTop: 20 },
+  arenaLogItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 16, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 5, elevation: 1, marginBottom: 8 },
+  arenaLogDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
+  arenaLogUser: { fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#1E293B' },
+  arenaLogPrice: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 16, color: '#2563EB', flex: 1, textAlign: 'right', marginRight: 15 },
+  arenaLogTime: { fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#94A3B8' },
+  arenaComingSoon: { padding: 40, alignItems: 'center' },
+  arenaComingSoonText: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, color: '#94A3B8', letterSpacing: 2 },
+  arenaActionWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, borderTopWidth: 1 },
+  arenaBidOptions: { flexDirection: 'row', gap: 12, marginBottom: 15, marginTop: 15 },
+  arenaQuickBid: { flex: 1, backgroundColor: '#F1F5F9', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#E2E8F0' },
+  arenaQuickBidText: { fontFamily: 'Inter_800ExtraBold', fontSize: 13, color: '#475569' },
+  arenaMainBid: { height: 64, borderRadius: 20, overflow: 'hidden', shadowColor: '#22C55E', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8, marginBottom: 10 },
+  arenaBidGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  arenaBidBtnText: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 22, color: '#FFF', letterSpacing: 2 },
 });
