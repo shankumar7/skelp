@@ -1,0 +1,30 @@
+name: Publish release
+
+# Publishes a GitHub release with the APK from release/skelp.apk whenever the
+# app version in app.json changes on main (or when run by hand).
+on:
+  push:
+    branches: [main]
+    paths: [app.json, release/skelp.apk, .github/workflows/release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release if this version has none yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./app.json').expo.version")
+          tag="v${version%.0}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists - updating its APK"
+            gh release upload "$tag" release/skelp.apk --clobber
+          else
+            gh release create "$tag" release/skelp.apk --target "$GITHUB_SHA" --title "Skelp! ${tag#v}" --notes-file docs/release-notes.md
+          fi
