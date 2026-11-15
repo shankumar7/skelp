@@ -24,8 +24,9 @@ export function useCountdown({ state, status, stamp }: Snapshot): { seconds: num
   }, []);
   const lot = state?.lot;
   if (!state || !lot) return { seconds: 0, fraction: 0 };
-  const running = lot.status === "open" && !state.paused && status === "live";
-  const elapsed = running || lot.status !== "open" ? Math.max(0, now - stamp) : 0;
+  // the host's clock (bidding or the SOLD pause) only runs while the auction is live and not paused
+  const running = !state.paused && status === "live";
+  const elapsed = running ? Math.max(0, now - stamp) : 0;
   const ms = Math.max(0, lot.remainMs - elapsed);
   const total = lot.status === "open" ? state.config.timer * 1000 : 3000;
   return { seconds: Math.ceil(ms / 1000), fraction: Math.min(1, ms / total) };

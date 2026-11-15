@@ -49,7 +49,9 @@ to that phone's **mobile hotspot** — joins it directly, phone to phone.
 
 1. On your Android phone, tap **[Download the APK](https://github.com/shankumar7/skelp/raw/main/release/skelp.apk)** — the file downloads straight away.
 2. Open the downloaded file and allow *Install unknown apps* when Android asks.
-3. Launch **Skelp!**, create a profile (or continue as a guest) and pick an avatar.
+3. Launch **Skelp!**, create a free account (or continue as a guest) and pick an avatar.
+
+> **Upgrading from 1.2 or earlier?** From 1.3 the app's Android ID is `com.classcom.skelp`, so it installs as a new app. Uninstall the old Skelp! after installing; profiles from the old version were stored only on that phone and do not carry over.
 
 Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
@@ -57,7 +59,8 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
 | | |
 | --- | --- |
-| 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. No internet, no account on any server. |
+| 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. Auctions never need the internet. |
+| ☁️ **Accounts and backup** | Sign up with email to back up your profile and stats and sign in on any phone. Email confirmation and password reset included. Or just play as a guest. |
 | 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Find nearby arenas*, or type the arena code. |
 | 📡 **Hotspot guide** | The app tells you when you are not on Wi-Fi and has one-tap shortcuts to the phone's hotspot and Wi-Fi settings. |
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
@@ -117,11 +120,15 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
 ## Privacy and security
 
-- **Nothing leaves your network.** There is no backend, analytics or advertising. Profiles, stats and history are stored only on the phone.
+- **Auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
+- **Accounts are optional.** Guests are stored only on the phone. With an account, the app keeps your username, avatar, stats and last ten auction results in Firebase (Google Cloud), linked to your email address, and syncs them whenever the phone is online. Delete the account at any time from the dashboard; that removes the backed-up data too.
+- **No ads, no analytics, no tracking.**
+- **Account emails come from Firebase.** Email confirmation and password reset are sent by Firebase Authentication; the app holds no mail-server password.
+- **Each player can only read and write their own data.** See [`firestore.rules`](firestore.rules).
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
 - **Untrusted input is bounded.** Names, avatars and ids from other phones are length-checked and sanitised, oversized messages drop the connection, reactions are rate-limited, and phones ignore malformed data from a host.
-- **Minimal permissions:** network and Wi-Fi state (to find the host), vibration, and the camera — asked for only when you tap *Scan QR*, and used only to read the code. No location, storage, contacts or microphone.
-- The local profile password only keeps casual hands out of your profile on your own phone; it is not sent anywhere. The link between phones is not encrypted, so play on a network you trust.
+- **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, and the camera — asked for only when you tap *Scan QR*, and used only to read the code. No location, storage, contacts or microphone.
+- The link between phones in an arena is not encrypted, so play on a network you trust.
 
 ## Development
 
@@ -140,6 +147,17 @@ npm test
 `npm test` runs the rules engine tests, complete bot-vs-bot auctions, and end-to-end LAN tests with a host and several clients talking over real TCP sockets. `npm run typecheck` and `npm run lint` are also available.
 
 LAN play and sound need native code, so use a development build or the APK rather than Expo Go. The web build (`npx expo start --web`) supports solo practice only.
+
+### Firebase setup (project owners)
+
+Online accounts use the Firebase project in `google-services.json` (`your-firebase-project`, Android app `com.classcom.skelp`). In the [Firebase console](https://console.firebase.google.com/project/your-firebase-project):
+
+1. **Authentication** → *Get started* → *Sign-in method* → enable **Email/Password**.
+2. **Firestore Database** → *Create database* → production mode, a nearby location (for India, `asia-south1` Mumbai).
+3. **Firestore Database → Rules** → paste [`firestore.rules`](firestore.rules) → *Publish*.
+4. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
+
+Until steps 1 and 2 are done, the app shows "Online accounts are not switched on yet" and players can still play as guests.
 
 ### Build the APK
 

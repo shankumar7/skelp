@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
@@ -10,10 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.skelp.app"
+      "bundleIdentifier": "com.classcom.skelp"
     },
     "android": {
-      "package": "com.skelp.app",
+      "package": "com.classcom.skelp",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
@@ -24,7 +24,7 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_WIFI_STATE"
       ],
-      "versionCode": 4,
+      "versionCode": 5,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -33,7 +33,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -86,7 +87,9 @@
           "cameraPermission": "Skelp! uses the camera to scan the host's QR code and join their arena.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "updates": {
       "enabled": false,
@@ -99,6 +102,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "description": "Offline IPL-style player auction game for friends on the same Wi-Fi or hotspot."
+    "description": "IPL-style player auction game for friends. Auctions run offline over Wi-Fi or a hotspot; accounts and stats sync with Firebase when online."
   }
 }
