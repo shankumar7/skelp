@@ -141,7 +141,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             </View>
             <Text style={s.aboutHeroTitle}>SKELP!</Text>
             <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.1</Text></View>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.2</Text></View>
             </View>
           </Animated.View>
 

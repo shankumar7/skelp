@@ -53,7 +53,47 @@ function wrap(raw: any): Sock {
   };
 }
 
-export function makeTransport(net: any): Transport {
+/**
+ * `variants` are extra connect options tried in order. On Android the first one binds the socket to
+ * Wi-Fi: a hotspot has no internet, so the phone would otherwise send our traffic over mobile data
+ * and never reach the host. The plain variant is the fallback for a phone that *is* the hotspot.
+ */
+export function makeTransport(net: any, variants: Record<string, unknown>[] = [{}]): Transport {
+  const connectOnce = (host: string, port: number, timeoutMs: number, extra: Record<string, unknown>): Promise<Sock> =>
+    new Promise((resolve, reject) => {
+      let done = false;
+      let raw: any;
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        try { raw?.destroy(); } catch {}
+        reject(new Error("timeout"));
+      }, timeoutMs + 150);
+      try {
+        // connectTimeout makes the native side give up too, instead of holding a thread for minutes
+        raw = net.createConnection({ host, port, connectTimeout: timeoutMs, ...extra }, () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(sock);
+        });
+      } catch (e) {
+        done = true;
+        clearTimeout(timer);
+        reject(e);
+        return;
+      }
+      // wrap immediately so no early data is lost
+      const sock = wrap(raw);
+      raw.on("error", (e: any) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { raw.destroy(); } catch {}
+        reject(e instanceof Error ? e : new Error(String(e?.message ?? e)));
+      });
+    });
+
   return {
     listen(port, onConn) {
       return new Promise((resolve, reject) => {
@@ -68,39 +108,18 @@ export function makeTransport(net: any): Transport {
         });
       });
     },
-    connect(host, port, timeoutMs = 3000) {
-      return new Promise((resolve, reject) => {
-        let done = false;
-        let raw: any;
-        const timer = setTimeout(() => {
-          if (done) return;
-          done = true;
-          try { raw?.destroy(); } catch {}
-          reject(new Error("timeout"));
-        }, timeoutMs);
+    async connect(host, port, timeoutMs = 3000) {
+      let lastError: unknown = new Error("unreachable");
+      for (const extra of variants) {
         try {
-          raw = net.createConnection({ host, port }, () => {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            resolve(sock);
-          });
+          return await connectOnce(host, port, timeoutMs, extra);
         } catch (e) {
-          done = true;
-          clearTimeout(timer);
-          reject(e);
-          return;
+          lastError = e;
+          // only move on to the next variant when this one could not be used at all (no Wi-Fi interface)
+          if (!/interface/i.test(String((e as Error)?.message ?? e))) break;
         }
-        // wrap immediately so no early data is lost
-        const sock = wrap(raw);
-        raw.on("error", (e: any) => {
-          if (done) return;
-          done = true;
-          clearTimeout(timer);
-          try { raw.destroy(); } catch {}
-          reject(e instanceof Error ? e : new Error(String(e)));
-        });
-      });
+      }
+      throw lastError;
     },
   };
 }
