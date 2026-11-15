@@ -4,7 +4,9 @@ from functools import lru_cache
 import config as C
 from effects.animations import prog, ease_out_back, ease_out_expo, ease_out_cubic, window, breathe
 from effects.graphics import background, glow, draw_logo, comp, comp_center, radial
-from effects.typography import reveal, label, text_img
+from effects.typography import reveal, label, text_img, GRAD
+
+B = C.BEAT
 
 
 @lru_cache(maxsize=1)
@@ -26,19 +28,19 @@ def render(t, tg):
     comp_center(canvas, radial(int((300 + 1700 * ring) / 32) * 32, C.PERI), C.W / 2, 400, 0.28 * (1 - ring))
     glow(canvas, C.W / 2, 330, 760 + 40 * breathe(t, 4), C.WASH_PERI, 0.9 * prog(t, 0.2, 1.2, ease_out_cubic))
 
-    s = prog(t, 0.1, 0.9, ease_out_back)
+    s = prog(t, 0.0, 0.8, ease_out_back)
     draw_logo(canvas, C.W / 2, 300, 210 * s, min(1, s * 1.4))
-    a = prog(t, 0.4, 0.7, ease_out_expo)
-    name = text_img(C.PRODUCT, "brand", 176, C.PERI)
+    a = prog(t, B, 0.6, ease_out_expo)
+    name = text_img(C.PRODUCT, "brand", 176, GRAD)
     comp(canvas, name, C.W / 2 - name.width / 2, 432 + (1 - a) * 40, a)
-    reveal(canvas, "Auction night, fully offline.", "bold", 52, C.MUTED, C.W / 2, 632, t, 0.95, None, "c")
+    reveal(canvas, "Auction night, fully offline.", "bold", 52, C.MUTED, C.W / 2, 632, t, 2 * B, None, "c", stagger=B / 4)
 
-    c = prog(t, 1.7, 0.8, ease_out_back)
+    c = prog(t, 4 * B, 0.7, ease_out_back)
     if c > 0:
         img = cta()
         pulse = 1 + 0.012 * breathe(t, 2.2)
         w, h = int(img.width * (0.9 + 0.1 * c) * pulse), int(img.height * (0.9 + 0.1 * c) * pulse)
         glow(canvas, C.W / 2, 806, 560, C.PERI, 0.30 * min(1, c))
         comp_center(canvas, img.resize((w, h), Image.LANCZOS), C.W / 2, 790, min(1, c * 1.3))
-    label(canvas, C.URL, "semi", 30, C.INK, C.W / 2, 874, prog(t, 2.3, 0.8, ease_out_cubic) * 0.92, "c", tracking=1)
+    label(canvas, C.URL, "semi", 30, C.INK, C.W / 2, 874, prog(t, 6 * B, 0.7, ease_out_cubic) * 0.92, "c", tracking=1)
     return canvas

@@ -3,11 +3,26 @@
 A light-theme, motion-designed commercial for Skelp!, built entirely in code:
 Python draws every frame, FFmpeg encodes, joins, mixes and masters.
 
-**Output:** `output/final_promo.mp4` — 1920×1080, 30 fps, H.264 (yuv420p), AAC 48 kHz stereo, 60 s.
+There are two cuts:
+
+| File | Music | Notes |
+| --- | --- | --- |
+| `output/final_promo_music.mp4` | The supplied track (`assets/audio/music.mp3`) | The current cut. Every scene, text hit, tap and the SOLD hammer is placed on the track's beat grid (118.3 BPM). Not committed — see *Music* below. |
+| `output/final_promo.mp4` | Original synthesised score | The first cut (committed). Its timing is in the git history; the scenes in this folder now follow the music grid. |
+
+Both are 1920×1080, 30 fps, H.264 (yuv420p), AAC 48 kHz stereo, 60 s.
 
 Everything on screen is the real app: the stills and the live-bidding sequence are captured from the
 app's own web build, and the interface sounds in the auction shot are the app's own.
-The soundtrack is original and synthesised by `render/make_audio.py`; nothing is sampled or licensed.
+
+## Music
+
+The 33-second track is laid out along the 60-second film by `render/music_bed.py`, joining only on bar
+lines (`MUSIC_PLAN` in `config.py`): its intro opens the film, its main section re-enters on the product
+reveal and again at the third feature, and its outro arrives with the final brand moment.
+
+`assets/audio/music.mp3` and the cut that uses it are **git-ignored**. Make sure you hold a licence for
+the track that covers this use before publishing the film or adding the file to a public repository.
 
 ## Regenerate
 
@@ -18,7 +33,7 @@ cd video_project
 ```
 
 ```bash
-python3 -m render.make_audio
+python3 -m render.music_bed
 ```
 
 ```bash
@@ -56,26 +71,29 @@ changes, check `LIVE_REC0` / `HAMMER_REC0` in `config.py` (they map recording ti
 ## Structure
 
 ```
-config.py              format, scene timeline (on a 96 BPM bar grid), palette, asset paths, copy
+config.py              format, music grid (BPM, downbeat, bar plan), scene timeline in bars, palette, paths, copy
 capture/               Playwright script that captures real screens and a live auction
 assets/                logo, fonts (Inter, Luckiest Guy — both OFL), screenshots, recording, app sounds
 effects/animations.py  easing curves, keyframes, opacity windows
 effects/typography.py  cached text rendering and masked word-by-word reveals
 effects/graphics.py    ambient background, phone mockup, focus ring, touch indicator, chips, logo
 scenes/                one module per scene: opening, problem, product_reveal, showcase, benefits, outro
-render/make_audio.py   score, sound design, mix, reverb, FFmpeg mastering
+render/music_bed.py    lays the supplied track along the film on bar lines, adds app sounds, masters with FFmpeg
+render/make_audio.py   the original synthesised score (first cut; 96 BPM, not aligned to the current grid)
 render/render_video.py parallel scene rendering -> FFmpeg concat, soundtrack, fades, final encode, verification
 render/preview.py      single frames / contact sheets for art-direction checks
 output/final_promo.mp4
 ```
 
-## Timeline
+## Timeline (music cut)
 
-| Time | Scene | What happens |
-| --- | --- | --- |
-| 0:00 – 0:05 | Opening | "Every fan thinks they'd win the auction." |
-| 0:05 – 0:12.5 | Problem | Spreadsheet, group chat, arguments — struck out — "And it all stops when the internet does." |
-| 0:12.5 – 0:20 | Reveal | Logo, name, tagline; the app rises into frame and opens |
-| 0:20 – 0:42.5 | Experience | Host or join · live bidding (real recording) · scout and build · the final table |
-| 0:42.5 – 0:52.5 | Value | No internet, no servers, no ads · up to 10 teams · free and open source |
-| 0:52.5 – 1:00 | Brand | Logo, name, tagline, call to action, URL |
+One bar is 2.03 s; the film starts 0.25 s before the first downbeat.
+
+| Bars | Time | Scene | What happens |
+| --- | --- | --- | --- |
+| 0 – 2 | 0:00 – 0:04.3 | Opening | "Every fan thinks they'd win the auction." over the track's intro |
+| 2 – 6 | 0:04.3 – 0:12.4 | Problem | Three pains land on beats, are struck out one per eighth note, then the punchline |
+| 6 – 10 | 0:12.4 – 0:20.5 | Reveal | The main section re-enters: logo, name, tagline; the phone swings in and the app opens on a downbeat |
+| 10 – 22 | 0:20.5 – 0:44.9 | Experience | Host or join · live bidding (taps on beats, SOLD on a downbeat) · scout and build · the final table |
+| 22 – 26 | 0:44.9 – 0:53.0 | Value | Three statements of 5, 5 and 6 beats |
+| 26 – end | 0:53.0 – 1:00 | Brand | The track's outro: logo, name, tagline, call to action, URL |

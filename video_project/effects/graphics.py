@@ -1,6 +1,6 @@
 """Compositing primitives: ambient background, phone mockup, highlights, chips, touch indicator."""
 from functools import lru_cache
-import json
+import math
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 import config as C
@@ -41,6 +41,27 @@ _vx, _vy = np.meshgrid(np.linspace(-1, 1, C.W, dtype=np.float32), np.linspace(-1
 _VIGNETTE = (1 - 0.07 * np.clip((_vx ** 2 * 0.8 + _vy ** 2) ** 0.9, 0, 1))[..., None]
 
 
+def beat_pulse(tg, every=4, sharp=5.0):
+    """1 at each downbeat (or every `every` beats), decaying to 0 — drives light that breathes with the music."""
+    span = C.BEAT * every
+    return math.exp(-(((tg - C.PHASE) % span) / span) * sharp) if tg >= C.PHASE else 0.0
+
+
+@lru_cache(maxsize=1)
+def _dot_grid():
+    """A faint dot matrix that fades towards the edges: gives the flat field some engineered structure."""
+    layer = Image.new("RGBA", (C.W, C.H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    step = 54
+    for y in range(step // 2, C.H, step):
+        for x in range(step // 2, C.W, step):
+            fall = max(0.0, 1 - (((x - C.W / 2) / (C.W * 0.62)) ** 2 + ((y - C.H / 2) / (C.H * 0.62)) ** 2))
+            a = int(46 * fall)
+            if a > 2:
+                d.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(70, 64, 130, a))
+    return layer
+
+
 def background(tg, energy=1.0, focus=None):
     """Slowly drifting pastel light on warm sand. `tg` is global film time so the background is
     continuous across scene cuts. `focus` = (x, y, strength) adds a periwinkle wash (0..1 coords)."""
@@ -52,14 +73,18 @@ def background(tg, energy=1.0, focus=None):
         (0.64 + 0.12 * breathe(tg, 31, 0.7), 0.10 + 0.06 * breathe(tg, 13, 0.4), 0.26, C.WASH_LILAC, 0.60),
         (0.08 + 0.05 * breathe(tg, 29, 0.3), 0.94, 0.24, C.WASH_GOLD, 0.60),
     ]
+    pulse = beat_pulse(tg)
+    energy = energy * (1 + 0.10 * pulse)
     if focus:
-        blobs.append((focus[0], focus[1], 0.30, C.WASH_PERI, 0.75 * focus[2]))
+        blobs.append((focus[0], focus[1], 0.30 + 0.02 * pulse, C.WASH_PERI, (0.75 + 0.2 * pulse) * focus[2]))
     for bx, by, rad, col, inten in blobs:
         g = (np.exp(-(((_xx - bx) * 16 / 9) ** 2 + (_yy - by) ** 2) / (2 * rad * rad)) * min(1.0, inten * energy))[..., None]
         img = img * (1 - g) + np.asarray(col, np.float32) * g
     big = np.asarray(Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).resize((C.W, C.H), Image.BICUBIC), np.float32)
     big = big * _VIGNETTE + _DITHER
-    return Image.fromarray(np.clip(big, 0, 255).astype(np.uint8)).convert("RGBA")
+    canvas = Image.fromarray(np.clip(big, 0, 255).astype(np.uint8)).convert("RGBA")
+    canvas.alpha_composite(_dot_grid())
+    return canvas
 
 
 @lru_cache(maxsize=16)
@@ -170,8 +195,53 @@ class Placed:
         return self.x0 + u * self.k, self.y0 + v * self.k
 
 
-def draw_phone(canvas, phone, cx, cy, h, alpha=1.0, angle=0.0, shadow=0.6):
-    """Draw a built phone at height `h` centred on (cx, cy). Returns a Placed mapper."""
+def _coeffs(dst, src):
+    """Perspective coefficients mapping output points `dst` back to source points `src`."""
+    m = []
+    for (x, y), (u, v) in zip(dst, src):
+        m.append([x, y, 1, 0, 0, 0, -u * x, -u * y])
+        m.append([0, 0, 0, x, y, 1, -v * x, -v * y])
+    return np.linalg.solve(np.asarray(m, np.float64), np.asarray(src, np.float64).reshape(8)).tolist()
+
+
+def tilt_image(img, deg):
+    """Turn a flat image about its vertical axis (positive = right edge further away)."""
+    w, h = img.size
+    a = math.radians(deg)
+    nw = max(2, int(w * math.cos(a)))
+    k = math.sin(a) * 0.20
+    pad = int(h * abs(k) / 2) + 2
+    sl, sr = 1 + k, 1 - k
+    dst = [(0, pad + h * (1 - sl) / 2), (0, pad + h * (1 + sl) / 2), (nw, pad + h * (1 - sr) / 2), (nw, pad + h * (1 + sr) / 2)]
+    src = [(0, 0), (0, h), (w, 0), (w, h)]
+    return img.transform((nw, h + 2 * pad), Image.PERSPECTIVE, _coeffs(dst, src), Image.BICUBIC)
+
+
+@lru_cache(maxsize=1)
+def _sheen_band():
+    """A diagonal band of light, used as a moving reflection on the glass."""
+    n = PH_H * 2
+    y, x = np.mgrid[0:PH_H, 0:PH_W].astype(np.float32)
+    d = (x * 0.75 + y) / (PH_W * 0.75 + PH_H)          # 0..1 along the diagonal
+    return d
+
+
+def with_sheen(phone, pos, strength=0.5):
+    """`phone` with a soft reflection at diagonal position `pos` (0..1)."""
+    d = _sheen_band()
+    band = np.exp(-((d - pos) / 0.07) ** 2) * 255 * strength
+    alpha = np.minimum(band, np.asarray(phone.getchannel("A"), np.float32))
+    layer = Image.new("RGBA", phone.size, (255, 255, 255, 0))
+    layer.putalpha(Image.fromarray(alpha.astype(np.uint8)))
+    out = phone.copy()
+    out.alpha_composite(layer)
+    return out
+
+
+def draw_phone(canvas, phone, cx, cy, h, alpha=1.0, angle=0.0, shadow=0.6, tilt=0.0, sheen=None):
+    """Draw a built phone at height `h` centred on (cx, cy). `tilt` turns it in 3D (degrees about the
+    vertical axis); `sheen` (0..1) sweeps a reflection across the glass. Returns a Placed mapper
+    (exact only while tilt is 0)."""
     if alpha <= 0.004 or h < 8:
         return Placed(cx, cy, max(h, 8))
     s = h / PH_H
@@ -179,7 +249,11 @@ def draw_phone(canvas, phone, cx, cy, h, alpha=1.0, angle=0.0, shadow=0.6):
         _, _, sh, pad = _phone_parts()
         sw, shh = int((PH_W + 2 * pad) * s), int((PH_H + 2 * pad) * s)
         comp_center(canvas, sh.resize((sw, shh), Image.BILINEAR), cx, cy + 46 * s, alpha * shadow)
+    if sheen is not None and 0.0 < sheen < 1.0:
+        phone = with_sheen(phone, sheen)
     img = phone.resize((max(1, int(PH_W * s)), max(1, int(h))), Image.LANCZOS if s < 0.75 else Image.BICUBIC)
+    if abs(tilt) > 0.2:
+        img = tilt_image(img, tilt)
     if abs(angle) > 0.05:
         img = img.rotate(angle, resample=Image.BICUBIC, expand=True)
     comp_center(canvas, img, cx, cy, alpha)

@@ -1,2 +1,5 @@
 build/
 __pycache__/
+# the supplied music track and the cut that uses it stay out of the repository until its licence is confirmed
+assets/audio/music.mp3
+output/final_promo_music.mp4
