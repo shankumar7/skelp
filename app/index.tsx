@@ -35,6 +35,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { s, SCREEN_H, SCREEN_W, EnhancedBackground, FormBackground, AnimatedPressable } from "@/components/skelp/ui";
 import { ArenaFlow } from "@/components/skelp/ArenaFlow";
 import { Dashboard } from "@/components/skelp/Dashboard";
+import { PlayerPool } from "@/components/skelp/PlayerPool";
 import { Session } from "@/game/net/session";
 import { load, Profile, recordAuction, signIn, signInGuest, signOut, signUp, Stats } from "@/game/storage";
 import CREDITS from "@/game/data/credits.json";
@@ -63,8 +64,8 @@ function BootSplash({ insets, ready, onDone }: any) {
   return (
     <Animated.View style={[s.screen, s.center, { opacity: fadeOut, position: "absolute", width: "100%", height: "100%", zIndex: 999 }]}>
       <EnhancedBackground />
-      <View style={s.auraContainer}><Animated.View style={[s.impactRing, { opacity: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }), transform: [{ scale: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.5, 4] }) }] }]} /><Animated.View style={[s.auraRing, { transform: [{ rotateZ: orbit1.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }, { scaleX: 1.1 }, { scaleY: 0.4 }] }]} /><Animated.View style={[s.auraRing, { borderColor: "rgba(37, 99, 235, 0.4)", transform: [{ rotateZ: orbit2.interpolate({ inputRange: [0, 1], outputRange: ["360deg", "0deg"] }) }, { scaleX: 0.5 }, { scaleY: 1.1 }] }]} /><Animated.View style={[s.claySplashLogo, { transform: [{ scale: logoScale }, { translateY: logoFloat }] }]}><Image source={require("../assets/images/circlelogo.png")} style={s.splashHeroLogo} resizeMode="contain" /></Animated.View></View>
-      <Animated.View style={[s.splashStatusBox, { opacity: logoOp }]}><Text style={s.splashBrandName}>SKELP!</Text><Text style={s.splashTagline}>THE ULTIMATE ARENA</Text><View style={s.miniLoader}><ActivityIndicator size="small" color="#2563EB" /></View></Animated.View>
+      <View style={s.auraContainer}><Animated.View style={[s.impactRing, { opacity: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }), transform: [{ scale: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.5, 4] }) }] }]} /><Animated.View style={[s.auraRing, { transform: [{ rotateZ: orbit1.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }, { scaleX: 1.1 }, { scaleY: 0.4 }] }]} /><Animated.View style={[s.auraRing, { borderColor: "rgba(91, 95, 239, 0.4)", transform: [{ rotateZ: orbit2.interpolate({ inputRange: [0, 1], outputRange: ["360deg", "0deg"] }) }, { scaleX: 0.5 }, { scaleY: 1.1 }] }]} /><Animated.View style={[s.claySplashLogo, { transform: [{ scale: logoScale }, { translateY: logoFloat }] }]}><Image source={require("../assets/images/circlelogo.png")} style={s.splashHeroLogo} resizeMode="contain" /></Animated.View></View>
+      <Animated.View style={[s.splashStatusBox, { opacity: logoOp }]}><Text style={s.splashBrandName}>SKELP!</Text><Text style={s.splashTagline}>THE ULTIMATE ARENA</Text><View style={s.miniLoader}><ActivityIndicator size="small" color="#5B5FEF" /></View></Animated.View>
     </Animated.View>
   );
 }
@@ -122,7 +123,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
         {/* Navigation Bar / Header */}
         <View style={[s.aboutHeader, { paddingTop: insets.top + 10 }]}>
           <Pressable onPress={onBack} style={s.aboutHeaderBackBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1E293B" />
+            <Ionicons name="arrow-back" size={24} color="#2A2545" />
           </Pressable>
           <View style={{ width: 44 }} />
         </View>
@@ -139,7 +140,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             </View>
             <Text style={s.aboutHeroTitle}>SKELP!</Text>
             <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E0E7FF' }]}><Text style={[s.aboutStatusText, { color: '#4338CA' }]}>V1.0</Text></View>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.0</Text></View>
             </View>
           </Animated.View>
 
@@ -161,9 +162,9 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
 
             <View style={s.aboutSocialRowSingle}>
               {[
-                { n: "logo-github", c: "#334155", l: "https://github.com/shankumar7" },
+                { n: "logo-github", c: "#3B3560", l: "https://github.com/shankumar7" },
                 { n: "logo-linkedin", c: "#0077B5", l: "https://www.linkedin.com/in/shankumar7/" },
-                { n: "mail", c: "#EF4444", l: "mailto:shankumarpitta714@gmail.com" },
+                { n: "mail", c: "#FF6B6B", l: "mailto:shankumarpitta714@gmail.com" },
                 { n: "logo-twitter", c: "#000", l: "https://x.com/shankumar_7" },
                 { n: "logo-instagram", c: "#E4405F", l: "https://www.instagram.com/shankumar_7/" }
               ].map((scl, i) => (
@@ -186,8 +187,8 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
               <Text style={[s.dashViewAll, { letterSpacing: 1 }]}>{showCredits ? "HIDE" : "SHOW"} {CREDITS.length} PHOTO CREDITS</Text>
             </Pressable>
             {showCredits && (CREDITS as { name: string; artist: string; license: string }[]).map((c) => (
-              <Text key={c.name} style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#64748B", marginTop: 8, lineHeight: 16 }}>
-                <Text style={{ color: "#1E293B", fontFamily: "Inter_700Bold" }}>{c.name}</Text> — {c.artist} ({c.license})
+              <Text key={c.name} style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#7A748F", marginTop: 8, lineHeight: 16 }}>
+                <Text style={{ color: "#2A2545", fontFamily: "Inter_700Bold" }}>{c.name}</Text> — {c.artist} ({c.license})
               </Text>
             ))}
           </Animated.View>
@@ -199,16 +200,16 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
 
 function AvatarSelectionScreen({ insets, onSelect, name }: any) {
   const avatars = [
-    { n: "shield-checkmark", c: "#2563EB", t: "GUARDIAN" },
+    { n: "shield-checkmark", c: "#5B5FEF", t: "GUARDIAN" },
     { n: "flash", c: "#10B981", t: "SPEED" },
-    { n: "trophy", c: "#EAB308", t: "CHAMP" },
-    { n: "rocket", c: "#F59E0B", t: "MOONER" },
-    { n: "skull", c: "#475569", t: "FINISH" },
-    { n: "heart", c: "#EF4444", t: "FAVE" },
+    { n: "trophy", c: "#F5A623", t: "CHAMP" },
+    { n: "rocket", c: "#FFB238", t: "MOONER" },
+    { n: "skull", c: "#5A5478", t: "FINISH" },
+    { n: "heart", c: "#FF6B6B", t: "FAVE" },
     { n: "planet", c: "#EC4899", t: "PLANET" },
     { n: "construct", c: "#0EA5E9", t: "ARCHI" },
     { n: "thunderstorm", c: "#6366F1", t: "STORM" },
-    { n: "eye", c: "#334155", t: "ANALYST" }
+    { n: "eye", c: "#3B3560", t: "ANALYST" }
   ];
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fade = useRef(new Animated.Value(0)).current;
@@ -258,7 +259,7 @@ function AuthenticatingScreen({ onFinish, name }: { onFinish: () => void; name: 
       <FormBackground />
       <View style={s.authGreetingBox}><Text style={s.authGreetingTitle}>HELLO,</Text><Text style={s.authGreetingName}>{name || "PLAYER"}</Text></View>
       <View style={s.clayProgressContainer}><View style={s.clayProgressPocket}><Animated.View style={[s.clayProgressBar, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]} /></View><Text style={s.clayPercentText}>{percent}%</Text></View>
-      <Animated.View style={[s.authStatusWrapper, { opacity: statusPulse }]}><Text style={[s.authStatusTextUnified, { color: "#94A3B8" }]}>GET READY TO OUTBID!</Text></Animated.View>
+      <Animated.View style={[s.authStatusWrapper, { opacity: statusPulse }]}><Text style={[s.authStatusTextUnified, { color: "#A39DB5" }]}>GET READY TO OUTBID!</Text></Animated.View>
     </Animated.View>
   );
 }
@@ -313,6 +314,7 @@ export default function HomeScreen() {
   const [bootDone, setBootDone] = useState(false);
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
   const [aboutFromCorner, setAboutFromCorner] = useState(false);
+  const [showPool, setShowPool] = useState(false);
 
   // the saved profile and stats live on this phone only
   useEffect(() => { load().then((d) => { setProfile(d.current); setStats(d.stats); setStored(true); }); }, []);
@@ -355,7 +357,8 @@ export default function HomeScreen() {
 
   if (profile) {
     if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={() => setSession(null)} onFinished={(item) => { recordAuction(item).then(setStats); }} />;
-    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} />;
+    if (showPool) return <PlayerPool insets={insets} onBack={() => setShowPool(false)} />;
+    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} />;
   }
   if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
   return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); }} handleAuth={handleAuth} authError={authError} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
@@ -376,7 +379,7 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, insets, passw
           <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }], flex: 1 }}>
             <View style={s.fullWidthTop}><Pressable style={s.clayBack} onPress={onBack} hitSlop={20}><Text style={s.clayBackText}>←</Text></Pressable><Pressable onPress={onAbout} style={s.clayLogoMini}><Image source={require("../assets/images/circlelogo.png")} style={s.logoImg} resizeMode="contain" /></Pressable></View>
             <View style={s.fullWidthContent}>
-              <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: "#2563EB" }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
+              <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: "#5B5FEF" }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
               <Text style={s.expansiveSub}>{isLogin ? "Welcome Back to the Arena!" : "Your profile is saved on this phone only"}</Text>
               <View style={s.clayForm}>
                 {!isLogin && (
@@ -385,7 +388,7 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, insets, passw
                     <View style={[s.premiumClayInput, focusedField === "email" && s.premiumClayInputOn]}>
                       <TextInput 
                         placeholder="Your email address" 
-                        placeholderTextColor="#64748B" 
+                        placeholderTextColor="#7A748F" 
                         value={email} 
                         onChangeText={setEmail} 
                         onFocus={() => setFocusedField("email")} 
@@ -397,9 +400,9 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, insets, passw
                     </View>
                   </View>
                 )}
-                <View style={s.clayField}><Text style={s.clayLabel}>USERNAME</Text><View style={[s.premiumClayInput, focusedField === "name" && s.premiumClayInputOn]}><TextInput placeholder={isLogin ? "Your username" : "Create username"} placeholderTextColor="#64748B" value={displayName} onChangeText={setDisplayName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /></View></View>
-                <View style={s.clayField}><Text style={s.clayLabel}>PASSWORD</Text><View style={[s.premiumClayInput, focusedField === "pw" && s.premiumClayInputOn]}><TextInput placeholder="Password" placeholderTextColor="#64748B" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} onFocus={() => setFocusedField("pw")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /><Pressable onPress={() => setShowPassword(!showPassword)}><Text style={s.clayToggleText}>{showPassword ? "HIDE" : "SHOW"}</Text></Pressable></View></View>
-                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#EF4444", marginLeft: 2 }}>{authError}</Text>}
+                <View style={s.clayField}><Text style={s.clayLabel}>USERNAME</Text><View style={[s.premiumClayInput, focusedField === "name" && s.premiumClayInputOn]}><TextInput placeholder={isLogin ? "Your username" : "Create username"} placeholderTextColor="#7A748F" value={displayName} onChangeText={setDisplayName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /></View></View>
+                <View style={s.clayField}><Text style={s.clayLabel}>PASSWORD</Text><View style={[s.premiumClayInput, focusedField === "pw" && s.premiumClayInputOn]}><TextInput placeholder="Password" placeholderTextColor="#7A748F" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} onFocus={() => setFocusedField("pw")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /><Pressable onPress={() => setShowPassword(!showPassword)}><Text style={s.clayToggleText}>{showPassword ? "HIDE" : "SHOW"}</Text></Pressable></View></View>
+                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#FF6B6B", marginLeft: 2 }}>{authError}</Text>}
                 <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}><Text style={s.premiumSubmitBtnText}>{isLogin ? "LOG IN" : "SIGN UP"}</Text></AnimatedPressable>
               </View>
               <View style={s.claySwitchBox}><Text style={s.claySwitchText}>{isLogin ? "New here? " : "Already member? "}<Text style={s.claySwitchLink} onPress={() => setIsLogin(!isLogin)}>{isLogin ? "Join Now" : "Sign In"}</Text></Text></View>

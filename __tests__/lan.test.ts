@@ -176,3 +176,27 @@ test("solo host with bots plays by itself in real time", async () => {
   await until(() => st(host).results.length >= 2, "bots to finish a couple of lots", 20000);
   expect(st(host).teams.filter((t) => t.isBot)).toHaveLength(3);
 }, 25000);
+
+test("emoji reactions reach every phone, junk and floods are dropped", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  const b = join(host, "phone-b", "Anika");
+  await until(() => a.getStatus() === "live" && b.getStatus() === "live", "join");
+  const seen: Record<string, string[]> = { host: [], a: [], b: [] };
+  host.onReaction((id, e) => seen.host.push(id + e));
+  a.onReaction((id, e) => seen.a.push(id + e));
+  const offB = b.onReaction((id, e) => seen.b.push(id + e));
+  a.react("🔥");
+  a.react("👏"); // too soon after the first one
+  a.react("<script>"); // not on the list
+  await until(() => seen.b.length === 1 && seen.a.length === 1 && seen.host.length === 1, "reaction fan-out");
+  host.react("😂");
+  await until(() => seen.a.length === 2 && seen.b.length === 2, "host reaction");
+  expect(seen.host).toEqual(["phone-a🔥", "host😂"]);
+  expect(seen.a).toEqual(seen.host);
+  offB();
+  await sleep(450);
+  a.react("💸");
+  await until(() => seen.host.length === 3, "third reaction");
+  expect(seen.b).toHaveLength(2); // unsubscribed
+});

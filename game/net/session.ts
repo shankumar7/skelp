@@ -7,7 +7,7 @@
  */
 import { BOT_AVATARS, BOT_NAMES, BotBrain } from "../bots";
 import { Action, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
-import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, ServerMsg } from "./protocol";
+import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, REACTIONS, ServerMsg } from "./protocol";
 import { Listener, Sock, Transport } from "./transport";
 
 export type Status = "connecting" | "live" | "reconnecting" | "closed";
@@ -24,6 +24,10 @@ export interface Session {
   subscribe(cb: () => void): () => void;
   bid(amount: number): void;
   pass(): void;
+  /** throw an emoji reaction into the room */
+  react(emoji: string): void;
+  /** be told about every reaction (yours included); returns an unsubscribe function */
+  onReaction(cb: (teamId: string, emoji: string) => void): () => void;
   leave(): void;
   // host-only controls (no-ops on clients)
   setConfig(c: Config): void;
@@ -46,6 +50,14 @@ abstract class Base {
     this.listeners.forEach((cb) => cb());
   }
   getStamp() { return this.stamp; }
+  protected reactionCbs = new Set<(teamId: string, emoji: string) => void>();
+  onReaction(cb: (teamId: string, emoji: string) => void) {
+    this.reactionCbs.add(cb);
+    return () => { this.reactionCbs.delete(cb); };
+  }
+  protected fireReaction(teamId: string, emoji: string) {
+    this.reactionCbs.forEach((cb) => cb(teamId, emoji));
+  }
 }
 
 const TICK_MS = 200;
@@ -61,7 +73,7 @@ export class HostSession extends Base implements Session {
   private brain: BotBrain;
   private timer: any = null;
   private listener: Listener | null = null;
-  private peers = new Map<Sock, { id: string | null; seen: number }>();
+  private peers = new Map<Sock, { id: string | null; seen: number; lastReact: number }>();
   private sinceSync = 0;
   private lastTick = Date.now();
   private botSeq = 0;
@@ -104,6 +116,10 @@ export class HostSession extends Base implements Session {
     this.apply({ type: "tick", dt }, false);
     for (const a of this.brain.step(this.state, dt)) this.apply(a, false);
     const s = this.state;
+    if (s.lot?.status === "sold" && before.lot?.status === "open") {
+      const winner = s.teams.find((t) => t.id === s.lot!.bidder);
+      if (winner?.isBot && this.rnd() < 0.6) this.spread(winner.id, s.lot.bid >= 800 ? "💸" : "🔥");
+    }
     const changed = s.lot?.pid !== before.lot?.pid || s.lot?.status !== before.lot?.status || s.lot?.bid !== before.lot?.bid ||
       s.lot?.bidder !== before.lot?.bidder || s.lot?.passed.length !== before.lot?.passed.length || s.phase !== before.phase;
     this.sinceSync += dt;
@@ -121,7 +137,7 @@ export class HostSession extends Base implements Session {
   }
 
   private onConn(sock: Sock) {
-    const peer = { id: null as string | null, seen: Date.now() };
+    const peer = { id: null as string | null, seen: Date.now(), lastReact: 0 };
     this.peers.set(sock, peer);
     sock.onLine((line) => {
       const m = decode<ClientMsg>(line);
@@ -144,6 +160,11 @@ export class HostSession extends Base implements Session {
         peer.id = m.id;
         sock.write(encode({ t: "welcome", id: m.id }));
         if (!this.apply({ type: "join", id: m.id, name: m.name, avatar: String(m.avatar || "person") })) sock.write(encode({ t: "state", s: this.state }));
+      } else if (m.t === "react" && peer.id) {
+        const now = Date.now();
+        if (now - peer.lastReact < 400) return; // no emoji floods
+        peer.lastReact = now;
+        this.spread(peer.id, m.e);
       } else if (m.t === "act" && peer.id) {
         // clients may only act for themselves, and only bid / pass
         const a = m.a;
@@ -162,6 +183,14 @@ export class HostSession extends Base implements Session {
     setTimeout(() => sock.close(), 300);
   }
 
+  /** Show a reaction on every phone in the arena. */
+  private spread(teamId: string, emoji: string) {
+    if (!REACTIONS.includes(emoji) || !this.state.teams.some((t) => t.id === teamId)) return;
+    const line = encode({ t: "react", id: teamId, e: emoji });
+    for (const [sock, peer] of this.peers) if (peer.id) sock.write(line);
+    this.fireReaction(teamId, emoji);
+  }
+  react(emoji: string) { this.spread(this.myId, emoji); }
   bid(amount: number) { this.apply({ type: "bid", id: this.myId, amount }); }
   pass() { this.apply({ type: "pass", id: this.myId }); }
   setConfig(c: Config) { this.apply({ type: "config", config: c }); }
@@ -238,6 +267,8 @@ export class ClientSession extends Base implements Session {
       this.state = m.s;
       this.status = "live";
       this.emit();
+    } else if (m.t === "react") {
+      this.fireReaction(m.id, m.e);
     } else if (m.t === "reject") {
       this.fail(m.reason);
     }
@@ -279,6 +310,7 @@ export class ClientSession extends Base implements Session {
   private send(a: Action) { this.sock?.write(encode({ t: "act", a })); }
   bid(amount: number) { this.send({ type: "bid", id: this.myId, amount }); }
   pass() { this.send({ type: "pass", id: this.myId }); }
+  react(emoji: string) { this.sock?.write(encode({ t: "react", e: emoji })); }
   setConfig() {}
   addBot() {}
   kick() {}

@@ -27,19 +27,19 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
   const canStart = state.teams.length >= 2;
 
   return (
-    <View style={[s.screen, { backgroundColor: "#F8FAFC" }]}>
-      <View style={[s.roomHeader, { paddingTop: insets.top + 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }]}>
-        <Pressable onPress={onExit} style={s.arenaBackBtn} accessibilityLabel="Leave arena"><Ionicons name="close" size={24} color="#1E293B" /></Pressable>
+    <View style={[s.screen, { backgroundColor: "#FBF7F0" }]}>
+      <View style={[s.roomHeader, { paddingTop: insets.top + 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1EADF" }]}>
+        <Pressable onPress={onExit} style={s.arenaBackBtn} accessibilityLabel="Leave arena"><Ionicons name="close" size={24} color="#2A2545" /></Pressable>
         <View style={s.arenaTitleBox}>
           <Text style={s.arenaCode} numberOfLines={1}>{state.arena.toUpperCase()}</Text>
-          <View style={s.arenaStatus}><View style={[s.arenaDot, { backgroundColor: "#F59E0B" }]} /><Text style={[s.arenaLiveText, { color: "#F59E0B" }]}>LOBBY</Text></View>
+          <View style={s.arenaStatus}><View style={[s.arenaDot, { backgroundColor: "#FFB238" }]} /><Text style={[s.arenaLiveText, { color: "#FFB238" }]}>LOBBY</Text></View>
         </View>
         <View style={s.arenaUserBox}><Ionicons name={(state.teams.find((t) => t.id === session.myId)?.avatar ?? "person") as any} size={22} color="#FFF" /></View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 150 }} showsVerticalScrollIndicator={false}>
         <View style={s.arenaPlayerSection}>
-          <LinearGradient colors={["#2563EB", "#1E40AF"]} style={[s.arenaPlayerCard, { padding: 24 }]}>
+          <LinearGradient colors={["#5B5FEF", "#3F42C8"]} style={[s.arenaPlayerCard, { padding: 24 }]}>
             <View style={s.arenaPlayerImagePlaceholder}><Ionicons name={session.lan ? "wifi" : "game-controller"} size={150} color="rgba(255,255,255,0.25)" /></View>
             <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>{session.lan ? (host ? "YOU ARE THE HOST" : "CONNECTED TO HOST") : "SOLO PRACTICE"}</Text></View>
             {session.lan && host ? (
@@ -68,12 +68,12 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
               <View style={[s.row, { flex: 1 }]}>
                 <View style={[s.dashLeaderAvatar, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={16} color={t.color} /></View>
                 <Text style={s.dashLeaderName} numberOfLines={1}>{t.name.toUpperCase()}</Text>
-                {t.id === state.hostId && <Tag text="HOST" color="#2563EB" />}
-                {t.id === session.myId && <Tag text="YOU" color="#16A34A" />}
-                {t.isBot && <Tag text="BOT" color="#64748B" />}
+                {t.id === state.hostId && <Tag text="HOST" color="#5B5FEF" />}
+                {t.id === session.myId && <Tag text="YOU" color="#1FA587" />}
+                {t.isBot && <Tag text="BOT" color="#7A748F" />}
               </View>
               {host && t.id !== state.hostId ? (
-                <Pressable onPress={() => session.kick(t.id)} hitSlop={10} accessibilityLabel={`Remove ${t.name}`}><Ionicons name="close-circle" size={22} color="#CBD5E1" /></Pressable>
+                <Pressable onPress={() => session.kick(t.id)} hitSlop={10} accessibilityLabel={`Remove ${t.name}`}><Ionicons name="close-circle" size={22} color="#CFC5B6" /></Pressable>
               ) : (
                 <Text style={s.dashPoints}>{formatMoney(cfg.purse)}</Text>
               )}
@@ -106,11 +106,11 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
         {!host && <Text style={[st.note, { marginTop: 14 }]}>ONLY THE HOST CAN CHANGE THE RULES</Text>}
       </ScrollView>
 
-      <View style={[s.arenaActionWrapper, { paddingTop: 14, paddingBottom: insets.bottom + 10, backgroundColor: "rgba(255, 255, 255, 0.95)", borderTopColor: "#F1F5F9" }]}>
+      <View style={[s.arenaActionWrapper, { paddingTop: 14, paddingBottom: insets.bottom + 10, backgroundColor: "rgba(255, 255, 255, 0.95)", borderTopColor: "#F1EADF" }]}>
         {host ? (
           <>
             <Pressable disabled={!canStart} onPress={() => session.start()} style={[s.arenaMainBid, !canStart && s.btnOff]} accessibilityLabel="Start auction">
-              <LinearGradient colors={["#22C55E", "#16A34A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.arenaBidGradient}>
+              <LinearGradient colors={["#2EC4A0", "#1FA587"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.arenaBidGradient}>
                 <Text style={s.arenaBidBtnText}>START AUCTION</Text>
               </LinearGradient>
             </Pressable>
@@ -132,9 +132,9 @@ function Rule({ v, l }: { v: string; l: string }) {
 }
 
 const st = StyleSheet.create({
-  codeLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#BFDBFE", letterSpacing: 3 },
-  hint: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#DBEAFE", marginTop: 12, lineHeight: 18 },
-  note: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#94A3B8", letterSpacing: 1, textAlign: "center", marginBottom: 8 },
+  codeLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#D3D1FF", letterSpacing: 3 },
+  hint: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#DDDCFF", marginTop: 12, lineHeight: 18 },
+  note: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#A39DB5", letterSpacing: 1, textAlign: "center", marginBottom: 8 },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginLeft: 8 },
   tagText: { fontFamily: "Inter_800ExtraBold", fontSize: 8, letterSpacing: 1 },
 });

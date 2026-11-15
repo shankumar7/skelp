@@ -9,12 +9,12 @@ const ROLE_ICON: Record<string, any> = { BAT: "baseball", BOWL: "tennisball", AR
 export function PlayerPhoto({ player, size, radius, light }: { player: Player; size: number; radius?: number; light?: boolean }) {
   const src = PLAYER_IMAGES[player.key];
   const r = radius ?? size / 2;
-  if (src) return <Image source={src} style={{ width: size, height: size, borderRadius: r, backgroundColor: "#E2E8F0" }} resizeMode="cover" accessibilityLabel={player.name} />;
+  if (src) return <Image source={src} style={{ width: size, height: size, borderRadius: r, backgroundColor: "#E6DCCC" }} resizeMode="cover" accessibilityLabel={player.name} />;
   const initials = player.name.split(/[\s-]+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <View style={[st.box, { width: size, height: size, borderRadius: r, backgroundColor: light ? "rgba(255,255,255,0.18)" : "#EFF6FF" }]}>
-      <Text style={[st.initials, { fontSize: size * 0.36, color: light ? "#FFF" : "#2563EB" }]}>{initials}</Text>
-      {size >= 56 && <Ionicons name={ROLE_ICON[player.role]} size={size * 0.16} color={light ? "rgba(255,255,255,0.7)" : "#94A3B8"} />}
+    <View style={[st.box, { width: size, height: size, borderRadius: r, backgroundColor: light ? "rgba(255,255,255,0.18)" : "#EEEDFF" }]}>
+      <Text style={[st.initials, { fontSize: size * 0.36, color: light ? "#FFF" : "#5B5FEF" }]}>{initials}</Text>
+      {size >= 56 && <Ionicons name={ROLE_ICON[player.role]} size={size * 0.16} color={light ? "rgba(255,255,255,0.7)" : "#A39DB5"} />}
     </View>
   );
 }

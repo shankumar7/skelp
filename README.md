@@ -21,7 +21,7 @@ or connected to that phone's **mobile hotspot** — joins it directly, phone to 
 <p align="center">
   <img src="docs/screenshots/welcome.png" width="19%" alt="Welcome" />
   <img src="docs/screenshots/dashboard.png" width="19%" alt="Dashboard" />
-  <img src="docs/screenshots/lobby.png" width="19%" alt="Lobby" />
+  <img src="docs/screenshots/pool.png" width="19%" alt="Player pool" />
   <img src="docs/screenshots/arena.png" width="19%" alt="Live auction" />
   <img src="docs/screenshots/results.png" width="19%" alt="Results" />
 </p>
@@ -33,6 +33,9 @@ or connected to that phone's **mobile hotspot** — joins it directly, phone to 
 - **Real auction rules** — base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, marquee set first, and an accelerated round for unsold players.
 - **137 players** with role, country, base price and rating — 85 of them with a freely-licensed photo, the rest with an initials badge.
 - **Bots** — practise solo against AI bidders, or add bots to fill empty seats in a friends' arena.
+- **Live room feel** — emoji reactions that pop up on every phone, an alert and buzz when you are outbid, an *Up next* strip and a running *Sold* feed.
+- **Scout the pool** — browse and search all players by role before the auction.
+- **Results worth sharing** — final table, costliest buy, steal of the auction, and a one-tap share to WhatsApp or anywhere else.
 - **Drop-proof** — if a phone loses Wi-Fi it reconnects on its own and gets its team back.
 - **Everything stays on the phone** — profile, stats and auction history are stored locally. No accounts, no servers, no ads.
 

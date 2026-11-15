@@ -10,7 +10,7 @@ import { Profile, Stats } from "@/game/storage";
 import { notify, s } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
-export function Dashboard({ profile, stats, insets, onLogout, onEnter }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void }) {
+export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void }) {
   const dashAnim = useRef(new Animated.Value(0)).current;
   const [code, setCode] = useState("");
   const [arenas, setArenas] = useState<ArenaInfo[]>([]);
@@ -72,28 +72,28 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter }: { profi
   };
 
   return (
-    <View style={[s.screen, { backgroundColor: "#F1F5F9" }]}>
+    <View style={[s.screen, { backgroundColor: "#F1EADF" }]}>
       <View style={[s.dashHeader, { paddingTop: insets.top + 10 }]}>
         <View style={[s.row, { flex: 1 }]}>
-          <View style={s.dashUserCircle}><Ionicons name={profile.avatar as any} size={28} color="#2563EB" /></View>
+          <View style={s.dashUserCircle}><Ionicons name={profile.avatar as any} size={28} color="#5B5FEF" /></View>
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={s.dashGreeting}>WELCOME BACK,</Text>
             <Text style={s.dashName} numberOfLines={1}>{profile.name.toUpperCase()}</Text>
           </View>
         </View>
-        <Pressable onPress={onLogout} style={s.dashLogout} accessibilityLabel="Log out"><Ionicons name="log-out-outline" size={24} color="#64748B" /></Pressable>
+        <Pressable onPress={onLogout} style={s.dashLogout} accessibilityLabel="Log out"><Ionicons name="log-out-outline" size={24} color="#7A748F" /></Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Animated.View style={[s.dashSearchBox, { paddingVertical: 4 }, slideUp(0)]}>
-          <Ionicons name="search" size={20} color="#94A3B8" />
-          <TextInput value={code} onChangeText={setCode} onSubmitEditing={joinByCode} placeholder="ENTER ARENA CODE..." placeholderTextColor="#94A3B8" keyboardType="numbers-and-punctuation" returnKeyType="go" autoCapitalize="none" style={[s.dashSearchPlaceholder, { flex: 1, color: "#1E293B", paddingVertical: 10 }]} />
-          {code.trim().length > 0 && <Pressable onPress={joinByCode} hitSlop={10} accessibilityLabel="Join with code"><Ionicons name="arrow-forward-circle" size={28} color="#2563EB" /></Pressable>}
+          <Ionicons name="search" size={20} color="#A39DB5" />
+          <TextInput value={code} onChangeText={setCode} onSubmitEditing={joinByCode} placeholder="ENTER ARENA CODE..." placeholderTextColor="#A39DB5" keyboardType="numbers-and-punctuation" returnKeyType="go" autoCapitalize="none" style={[s.dashSearchPlaceholder, { flex: 1, color: "#2A2545", paddingVertical: 10 }]} />
+          {code.trim().length > 0 && <Pressable onPress={joinByCode} hitSlop={10} accessibilityLabel="Join with code"><Ionicons name="arrow-forward-circle" size={28} color="#5B5FEF" /></Pressable>}
         </Animated.View>
 
         <Animated.View style={[s.dashJoinHero, slideUp(100)]}>
           <Pressable onPress={rescan} accessibilityLabel="Find nearby arenas">
-            <LinearGradient colors={["#2563EB", "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.dashJoinGradient}>
+            <LinearGradient colors={["#5B5FEF", "#4A4DDB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.dashJoinGradient}>
               <View style={{ flex: 1 }}>
                 <Text style={s.dashJoinTitle}>FIND NEARBY ARENAS</Text>
                 <Text style={s.dashJoinSub}>SAME WI-FI OR HOTSPOT • NO INTERNET NEEDED</Text>
@@ -114,27 +114,27 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter }: { profi
               const open = a.phase === "lobby" && a.teams < a.max;
               return (
                 <Pressable key={a.host} onPress={() => join(a.host)} style={s.dashAucCard}>
-                  <View style={[s.dashAucBadge, !open && { backgroundColor: "#F1F5F9" }]}><Text style={[s.dashAucBadgeText, !open && { color: "#64748B" }]}>{open ? "OPEN" : a.phase === "lobby" ? "FULL" : "IN PROGRESS"}</Text></View>
+                  <View style={[s.dashAucBadge, !open && { backgroundColor: "#F1EADF" }]}><Text style={[s.dashAucBadgeText, !open && { color: "#7A748F" }]}>{open ? "OPEN" : a.phase === "lobby" ? "FULL" : "IN PROGRESS"}</Text></View>
                   <Text style={s.dashAucTitle} numberOfLines={2}>{a.arena.toUpperCase()}</Text>
                   <View style={s.dashAucMeta}>
-                    <Ionicons name="people-outline" size={12} color="#64748B" /><Text style={s.dashAucStat}>{a.teams}/{a.max}</Text>
+                    <Ionicons name="people-outline" size={12} color="#7A748F" /><Text style={s.dashAucStat}>{a.teams}/{a.max}</Text>
                     <View style={s.dashAucDot} />
-                    <Ionicons name="flash-outline" size={12} color="#64748B" /><Text style={s.dashAucStat}>{a.mode}</Text>
+                    <Ionicons name="flash-outline" size={12} color="#7A748F" /><Text style={s.dashAucStat}>{a.mode}</Text>
                   </View>
                 </Pressable>
               );
             })}
             {arenas.length === 0 && (
               <View style={s.dashAucCard}>
-                <View style={[s.dashAucBadge, { backgroundColor: "#F1F5F9" }]}><Text style={[s.dashAucBadgeText, { color: "#64748B" }]}>{scanning ? "SEARCHING" : "NONE FOUND"}</Text></View>
+                <View style={[s.dashAucBadge, { backgroundColor: "#F1EADF" }]}><Text style={[s.dashAucBadgeText, { color: "#7A748F" }]}>{scanning ? "SEARCHING" : "NONE FOUND"}</Text></View>
                 <Text style={s.dashAucTitle} numberOfLines={2}>{scanning ? "LOOKING FOR ARENAS…" : "NO ARENA NEARBY"}</Text>
                 <View style={s.dashAucMeta}><Text style={s.dashAucStat}>{scanning ? "CHECKING YOUR NETWORK" : "HOST ONE BELOW"}</Text></View>
               </View>
             )}
             <Pressable onPress={() => hostArena(false)} style={s.dashAucCard} accessibilityLabel="Solo practice">
-              <View style={[s.dashAucBadge, { backgroundColor: "#E0E7FF" }]}><Text style={[s.dashAucBadgeText, { color: "#4338CA" }]}>OFFLINE</Text></View>
+              <View style={[s.dashAucBadge, { backgroundColor: "#E3E1FF" }]}><Text style={[s.dashAucBadgeText, { color: "#4A3FC4" }]}>OFFLINE</Text></View>
               <Text style={s.dashAucTitle} numberOfLines={2}>SOLO PRACTICE</Text>
-              <View style={s.dashAucMeta}><Ionicons name="hardware-chip-outline" size={12} color="#64748B" /><Text style={s.dashAucStat}>YOU VS BOTS</Text></View>
+              <View style={s.dashAucMeta}><Ionicons name="hardware-chip-outline" size={12} color="#7A748F" /><Text style={s.dashAucStat}>YOU VS BOTS</Text></View>
             </Pressable>
           </ScrollView>
         </Animated.View>
@@ -152,8 +152,8 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter }: { profi
           {stats.history.slice(0, 5).map((h, i, arr) => (
             <View key={h.date} style={[s.dashLeaderItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={[s.row, { flex: 1 }]}>
-                <Text style={[s.dashRank, h.rank === 1 && { color: "#EAB308" }]}>{h.rank}</Text>
-                <View style={s.dashLeaderAvatar}><Ionicons name={h.rank === 1 ? "trophy" : "podium"} size={16} color="#2563EB" /></View>
+                <Text style={[s.dashRank, h.rank === 1 && { color: "#F5A623" }]}>{h.rank}</Text>
+                <View style={s.dashLeaderAvatar}><Ionicons name={h.rank === 1 ? "trophy" : "podium"} size={16} color="#5B5FEF" /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.dashLeaderName} numberOfLines={1}>{h.arena.toUpperCase()}</Text>
                   <Text style={s.arenaLogTime}>PLACED {h.rank} OF {h.teams} • {h.players} PLAYERS • {formatMoney(h.spent)}</Text>
@@ -168,6 +168,10 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter }: { profi
           <Pressable style={[s.dashCreateBtn, busy && s.btnOff]} onPress={() => hostArena(true)} accessibilityLabel="Host your own arena">
             <View style={s.dashCreateIconBox}>{busy ? <ActivityIndicator color="#FFF" /> : <Ionicons name="add" size={20} color="#FFF" />}</View>
             <Text style={s.dashCreateText}>HOST YOUR OWN ARENA</Text>
+          </Pressable>
+          <Pressable style={[s.dashCreateBtn, { marginTop: 12 }]} onPress={onPool} accessibilityLabel="Browse the player pool">
+            <View style={[s.dashCreateIconBox, { backgroundColor: "#FFB238", boxShadow: "inset 0px -5px 8px rgba(170, 100, 0, 0.35), inset 0px 5px 8px rgba(255, 255, 255, 0.45)" }]}><Ionicons name="people" size={20} color="#FFF" /></View>
+            <Text style={s.dashCreateText}>SCOUT THE PLAYER POOL</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>

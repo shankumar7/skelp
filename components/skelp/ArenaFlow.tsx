@@ -55,7 +55,7 @@ export function ArenaFlow({ session, insets, onExit, onFinished }: { session: Se
           <Text style={s.authGreetingTitle}>{error ? "ARENA CLOSED" : "CONNECTING"}</Text>
           <Text style={[s.authGreetingName, { fontSize: 28 }]}>{error ? "OUT OF THE ARENA" : "FINDING THE HOST…"}</Text>
         </View>
-        {error ? <Text style={[s.aboutDevBioHero, { marginBottom: 24 }]}>{error}</Text> : <ActivityIndicator size="large" color="#2563EB" style={{ marginBottom: 24 }} />}
+        {error ? <Text style={[s.aboutDevBioHero, { marginBottom: 24 }]}>{error}</Text> : <ActivityIndicator size="large" color="#5B5FEF" style={{ marginBottom: 24 }} />}
         <AnimatedPressable style={[s.premiumSubmitBtn, { paddingHorizontal: 32 }]} onPress={leaveNow}><Text style={s.premiumSubmitBtnText}>{error ? "BACK TO DASHBOARD" : "CANCEL"}</Text></AnimatedPressable>
       </View>
     );

@@ -6,7 +6,7 @@ import { increment } from "./money";
 import { getPlayer, PLAYERS, Player } from "./players";
 
 export const MAX_TEAMS = 10;
-export const TEAM_COLORS = ["#2563EB", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#0EA5E9", "#14B8A6", "#F97316", "#64748B"];
+export const TEAM_COLORS = ["#5B5FEF", "#2EC4A0", "#FFB238", "#FF6B6B", "#A66CFF", "#FF7EB6", "#38BDF8", "#14B8A6", "#FB923C", "#7A748F"];
 
 export interface SquadEntry { pid: number; price: number }
 export interface Team {
