@@ -9,7 +9,7 @@ import { CLAY_CARD, CLAY_SOFT, confirm, s } from "./ui";
 export function VerifyBanner({ profile, onProfile }: { profile: Profile; onProfile: (c: Partial<Profile>) => void }) {
   const [busy, setBusy] = useState<"check" | "send" | null>(null);
   const [note, setNote] = useState("");
-  if (profile.guest || profile.verified || !profile.uid) return null;
+  if (profile.guest || profile.verified || !profile.uid || profile.provider === "google") return null;
   const check = async () => {
     setBusy("check"); setNote("");
     const r = await cloud.refreshVerified();
@@ -62,6 +62,7 @@ export function AccountCard({ profile, onCreateAccount, onDeleted }: { profile: 
       </View>
     );
   }
+  const google = profile.provider === "google";
   const doDelete = async () => {
     setBusy(true); setError("");
     const r = await cloud.deleteAccount(password);
@@ -72,18 +73,20 @@ export function AccountCard({ profile, onCreateAccount, onDeleted }: { profile: 
   return (
     <View style={st.card}>
       <View style={s.row}><Ionicons name="cloud-done" size={20} color="#16A07E" /><Text style={st.title}>BACKED UP TO YOUR ACCOUNT</Text></View>
-      <Text style={st.body}>{profile.email}{"\n"}Your profile and stats sync whenever this phone is online.</Text>
+      <Text style={st.body}>{profile.email}{google ? "  ·  Google account" : ""}{"\n"}Your profile and stats sync whenever this phone is online.</Text>
       {!deleting ? (
         <Pressable onPress={() => setDeleting(true)} hitSlop={8} style={{ marginTop: 12 }}><Text style={[st.btnText, { color: "#E04848", fontSize: 11 }]}>DELETE ACCOUNT…</Text></Pressable>
       ) : (
         <View style={{ marginTop: 12 }}>
-          <Text style={st.body}>This permanently deletes your account and its backed-up stats. Enter your password to confirm.</Text>
-          <View style={[s.premiumClayInput, { marginTop: 10 }]}>
-            <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#7A748F" secureTextEntry autoCapitalize="none" style={s.clayInputInner} />
-          </View>
+          <Text style={st.body}>This permanently deletes your account and its backed-up stats. {google ? "Google will ask you to choose your account to confirm." : "Enter your password to confirm."}</Text>
+          {!google && (
+            <View style={[s.premiumClayInput, { marginTop: 10 }]}>
+              <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#7A748F" secureTextEntry autoCapitalize="none" style={s.clayInputInner} />
+            </View>
+          )}
           {!!error && <Text style={[st.note, { color: "#E04848" }]}>{error}</Text>}
           <View style={st.btnRow}>
-            <Pressable disabled={busy || !password} onPress={() => confirm("DELETE ACCOUNT?", "This cannot be undone.", doDelete, "DELETE")} style={[st.btn, { backgroundColor: "#E04848", opacity: busy || !password ? 0.5 : 1 }]}>
+            <Pressable disabled={busy || (!google && !password)} onPress={() => confirm("DELETE ACCOUNT?", "This cannot be undone.", doDelete, "DELETE")} style={[st.btn, { backgroundColor: "#E04848", opacity: busy || (!google && !password) ? 0.5 : 1 }]}>
               {busy ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[st.btnText, { color: "#FFF" }]}>DELETE</Text>}
             </Pressable>
             <Pressable onPress={() => { setDeleting(false); setPassword(""); setError(""); }} style={st.btn}><Text style={st.btnText}>CANCEL</Text></Pressable>

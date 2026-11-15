@@ -142,7 +142,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             </View>
             <Text style={s.aboutHeroTitle}>SKELP!</Text>
             <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.3</Text></View>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.4</Text></View>
             </View>
           </Animated.View>
 
@@ -315,6 +315,8 @@ export default function HomeScreen() {
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  /** a Google account signing in for the first time picks an avatar before entering */
+  const [googleSignup, setGoogleSignup] = useState<{ uid: string; email: string } | null>(null);
   const [bootDone, setBootDone] = useState(false);
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
   const [aboutFromCorner, setAboutFromCorner] = useState(false);
@@ -336,7 +338,7 @@ export default function HomeScreen() {
       if (!res.ok) return setAuthError(res.error);
       const v = res.value;
       const p: Profile = {
-        id: newId(), uid: v.uid, email: v.email, verified: v.verified, guest: false,
+        id: newId(), uid: v.uid, email: v.email, verified: v.verified, guest: false, provider: "password",
         name: (v.name || v.email.split("@")[0]).slice(0, 16),
         avatar: v.saved?.avatar ?? "shield-checkmark", avatarIdx: v.saved?.avatarIdx ?? 0,
       };
@@ -351,6 +353,26 @@ export default function HomeScreen() {
     setIsGuest(false);
     setIsSelectingAvatar(true);
   };
+  const signInGoogle = async () => {
+    setAuthError(""); setAuthNotice("");
+    setBusy(true);
+    const res = await cloud.signInWithGoogle();
+    setBusy(false);
+    if (!res.ok) return setAuthError(res.error);
+    const v = res.value;
+    if (!v) return;                                          // closed the account picker
+    if (!v.saved) {                                          // first time: choose an avatar
+      setDisplayName((v.name || v.email.split("@")[0]).trim().slice(0, 16));
+      setGoogleSignup({ uid: v.uid, email: v.email });
+      setIsGuest(false);
+      setIsSelectingAvatar(true);
+      return;
+    }
+    const p: Profile = { id: newId(), uid: v.uid, email: v.email, verified: true, guest: false, provider: "google", name: v.saved.name.slice(0, 16), avatar: v.saved.avatar, avatarIdx: v.saved.avatarIdx };
+    setStats(await setSignedIn(p, { ...v.saved.stats, history: v.saved.history }));
+    setPending(p);
+    setIsAuthenticating(true);
+  };
   const forgotPassword = async () => {
     setAuthError(""); setAuthNotice("");
     if (!EMAIL_RE.test(email.trim())) return setAuthError("Type your email address above, then tap Forgot password.");
@@ -361,6 +383,15 @@ export default function HomeScreen() {
     setAuthNotice(`We sent a password reset link to ${email.trim()}. Check your inbox and spam folder.`);
   };
   const onAvatar = async (icon: string, idx: number) => {
+    if (googleSignup) {
+      const p: Profile = { id: newId(), uid: googleSignup.uid, email: googleSignup.email, verified: true, guest: false, provider: "google", name: displayName.trim() || "PLAYER", avatar: icon, avatarIdx: idx };
+      setStats(await setSignedIn(p, null));                   // also creates the cloud profile
+      setGoogleSignup(null);
+      setPending(p);
+      setIsSelectingAvatar(false);
+      setIsAuthenticating(true);
+      return;
+    }
     if (isGuest) {
       setPending(await signInGuest(displayName, icon, idx));
       setIsSelectingAvatar(false);
@@ -371,7 +402,7 @@ export default function HomeScreen() {
     const res = await cloud.signUp(email, password, displayName.trim(), icon, idx);
     setBusy(false);
     if (!res.ok) { setAuthError(res.error); setIsSelectingAvatar(false); return; }
-    const p: Profile = { id: newId(), uid: res.value.uid, email: res.value.email, verified: res.value.verified, guest: false, name: displayName.trim(), avatar: icon, avatarIdx: idx };
+    const p: Profile = { id: newId(), uid: res.value.uid, email: res.value.email, verified: res.value.verified, guest: false, provider: "password", name: displayName.trim(), avatar: icon, avatarIdx: idx };
     setStats(await setSignedIn(p, null));
     setPending(p);
     setIsSelectingAvatar(false);
@@ -403,7 +434,7 @@ export default function HomeScreen() {
     return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} />;
   }
   if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
-  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
+  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} onGoogle={signInGoogle} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
 }
 
 function Field({ label, value, onChange, placeholder, focused, onFocus, onBlur, secure, right, ...rest }: any) {
@@ -418,7 +449,7 @@ function Field({ label, value, onChange, placeholder, focused, onFocus, onBlur, 
   );
 }
 
-function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, busy, onForgot, insets, password, setPassword, displayName, setDisplayName, email, setEmail, onBack, onAbout }: any) {
+function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, busy, onForgot, onGoogle, insets, password, setPassword, displayName, setDisplayName, email, setEmail, onBack, onAbout }: any) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
@@ -451,6 +482,11 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, b
                 {!!authNotice && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#14806A", marginLeft: 2, lineHeight: 18 }}>{authNotice}</Text>}
                 <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}>
                   <Text style={s.premiumSubmitBtnText}>{busy ? "PLEASE WAIT…" : isLogin ? "LOG IN" : "CHOOSE AVATAR"}</Text>
+                </AnimatedPressable>
+                <View style={s.clayDivider}><View style={s.clayLine} /><Text style={s.clayOr}>or</Text><View style={s.clayLine} /></View>
+                <AnimatedPressable style={[s.premiumGoogleBtn, busy && s.btnOff]} onPress={onGoogle} disabled={busy}>
+                  <Ionicons name="logo-google" size={20} color="#4285F4" style={{ marginRight: 12 }} />
+                  <Text style={s.clayGoogleText}>CONTINUE WITH GOOGLE</Text>
                 </AnimatedPressable>
                 <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#A39DB5", textAlign: "center", lineHeight: 16 }}>
                   {isLogin ? "Signing in needs internet once. Auctions themselves never do." : "We'll email you a link to confirm your address."}

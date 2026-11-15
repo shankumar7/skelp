@@ -15,6 +15,11 @@ describe("friendly Firebase errors", () => {
     [{ code: "auth/too-many-requests" }, /Too many attempts/],
     [{ code: "auth/unknown", message: "[auth/internal-error] CONFIGURATION_NOT_FOUND" }, /not switched on yet/],
     [{ code: "firestore/unavailable", message: "The service is currently unavailable" }, /No internet/],
+    [{ code: "10", message: "DEVELOPER_ERROR" }, /Google sign-in is not set up/],
+    [{ code: "PLAY_SERVICES_NOT_AVAILABLE" }, /Google Play services/],
+    [{ code: "7", message: "NETWORK_ERROR" }, /No internet/],
+    [{ code: "auth/account-exists-with-different-credential" }, /email and password/],
+    [{ code: "google/cancelled" }, /Cancelled/],
     [new Error("boom"), /Something went wrong/],
     [null, /Something went wrong/],
   ])("%j", (err, re) => expect(friendlyError(err)).toMatch(re));

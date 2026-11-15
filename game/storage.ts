@@ -17,6 +17,8 @@ export interface Profile {
   uid: string | null;
   /** whether the email address has been confirmed */
   verified: boolean;
+  /** how the account signs in (missing on guests and profiles made before 1.4) */
+  provider?: "password" | "google";
 }
 export interface HistoryItem { date: number; arena: string; rank: number; teams: number; power: number; spent: number; players: number }
 export interface Stats { auctions: number; wins: number; spent: number; history: HistoryItem[] }

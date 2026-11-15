@@ -60,7 +60,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | | |
 | --- | --- |
 | 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. Auctions never need the internet. |
-| ☁️ **Accounts and backup** | Sign up with email to back up your profile and stats and sign in on any phone. Email confirmation and password reset included. Or just play as a guest. |
+| ☁️ **Accounts and backup** | Continue with Google, or sign up with email, to back up your profile and stats and sign in on any phone. Email confirmation and password reset included. Or just play as a guest. |
 | 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Find nearby arenas*, or type the arena code. |
 | 📡 **Hotspot guide** | The app tells you when you are not on Wi-Fi and has one-tap shortcuts to the phone's hotspot and Wi-Fi settings. |
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
@@ -123,6 +123,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 - **Auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
 - **Accounts are optional.** Guests are stored only on the phone. With an account, the app keeps your username, avatar, stats and last ten auction results in Firebase (Google Cloud), linked to your email address, and syncs them whenever the phone is online. Delete the account at any time from the dashboard; that removes the backed-up data too.
 - **No ads, no analytics, no tracking.**
+- **Google sign-in** only shares your name and email address with the app.
 - **Account emails come from Firebase.** Email confirmation and password reset are sent by Firebase Authentication; the app holds no mail-server password.
 - **Each player can only read and write their own data.** See [`firestore.rules`](firestore.rules).
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
@@ -152,7 +153,12 @@ LAN play and sound need native code, so use a development build or the APK rathe
 
 Online accounts use the Firebase project in `google-services.json` (`your-firebase-project`, Android app `com.classcom.skelp`). In the [Firebase console](https://console.firebase.google.com/project/your-firebase-project):
 
-1. **Authentication** → *Get started* → *Sign-in method* → enable **Email/Password**.
+1. **Authentication** → *Get started* → *Sign-in method* → enable **Email/Password** and **Google**.
+   For Google, also add the app's signing fingerprint in **Project settings → Your apps → Skelp! (Android) → Add fingerprint**:
+   - SHA-1 `(removed)`
+   - SHA-256 `(removed)`
+
+   These belong to the shared React Native debug key the APK is currently signed with. If you move to your own release key, add its fingerprints too.
 2. **Firestore Database** → *Create database* → production mode, a nearby location (for India, `asia-south1` Mumbai).
 3. **Firestore Database → Rules** → paste [`firestore.rules`](firestore.rules) → *Publish*.
 4. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.

@@ -1,14 +1,15 @@
 /**
  * Online accounts and cloud backup through Firebase (project "your-firebase-project").
- *  - Firebase Auth: email + password accounts. Firebase itself sends the account emails
+ *  - Firebase Auth: email + password accounts, or "Continue with Google". Firebase itself sends the account emails
  *    (address verification, password reset) — no mail server or password lives in this app.
  *  - Firestore: one document per player, users/{uid}, holding the profile and stats.
  *    Firestore queues writes made offline and sends them when the phone is back online,
  *    so finishing an auction on a hotspot without internet still ends up in the cloud.
  * Auctions themselves never touch the internet; they stay phone-to-phone over Wi-Fi.
  */
+import { GoogleSignin, isCancelledResponse } from "@react-native-google-signin/google-signin";
 import {
-  createUserWithEmailAndPassword, deleteUser, EmailAuthProvider, getAuth, reauthenticateWithCredential, reload,
+  createUserWithEmailAndPassword, deleteUser, EmailAuthProvider, getAuth, GoogleAuthProvider, signInWithCredential, reauthenticateWithCredential, reload,
   sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile,
 } from "@react-native-firebase/auth";
 import { deleteDoc, doc, getDoc, getFirestore, serverTimestamp, setDoc } from "@react-native-firebase/firestore";
@@ -19,6 +20,25 @@ export type { CloudProfile, CloudResult } from "./cloudTypes";
 export const cloudAvailable = true;
 
 const auth = () => getAuth();
+
+/** The OAuth "Web client" Firebase created when Google sign-in was enabled for project your-firebase-project. */
+export const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
+let googleReady = false;
+
+/** Show Google's account picker; returns an ID token, or null if the player backed out. */
+async function googleIdToken(): Promise<string | null> {
+  if (!googleReady) {
+    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+    googleReady = true;
+  }
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const res = await GoogleSignin.signIn();
+  if (isCancelledResponse(res)) return null;
+  if (!res.data.idToken) throw Object.assign(new Error("no-id-token"), { code: "google/no-id-token" });
+  return res.data.idToken;
+}
+
+const usesGoogle = () => !!auth().currentUser?.providerData.some((p) => p.providerId === "google.com");
 const userDoc = (uid: string) => doc(getFirestore(), "users", uid);
 
 async function attempt<T>(fn: () => Promise<T>): Promise<CloudResult<T>> {
@@ -64,6 +84,18 @@ export function signIn(email: string, password: string) {
   });
 }
 
+/** "Continue with Google". `value` is null when the player closes the account picker. */
+export function signInWithGoogle() {
+  return attempt(async () => {
+    const token = await googleIdToken();
+    if (!token) return null;
+    const cred = await signInWithCredential(auth(), GoogleAuthProvider.credential(token));
+    const user = cred.user;
+    const saved = await readProfile(user.uid);
+    return { uid: user.uid, email: user.email ?? "", name: saved?.name ?? user.displayName ?? "", saved };
+  });
+}
+
 export const resetPassword = (email: string) => attempt(() => sendPasswordResetEmail(auth(), email.trim()));
 
 export function resendVerification() {
@@ -89,16 +121,27 @@ export function currentUid(): string | null {
 }
 
 export function logOut() {
+  const google = usesGoogle();
   signOut(auth()).catch(() => {});
+  if (google) GoogleSignin.signOut().catch(() => {});      // next time, show the account picker again
 }
 
-/** Delete the cloud data and the account. Firebase asks for the password again for safety. */
+/** Delete the cloud data and the account. Firebase asks the player to prove it is them again first:
+ *  the password for email accounts, the Google account picker for Google accounts. */
 export function deleteAccount(password: string) {
   return attempt(async () => {
     const user = auth().currentUser;
-    if (!user || !user.email) throw new Error("not-signed-in");
-    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+    if (!user) throw new Error("not-signed-in");
+    if (usesGoogle()) {
+      const token = await googleIdToken();
+      if (!token) throw Object.assign(new Error("cancelled"), { code: "google/cancelled" });
+      await reauthenticateWithCredential(user, GoogleAuthProvider.credential(token));
+    } else {
+      if (!user.email) throw new Error("not-signed-in");
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+    }
     await deleteDoc(userDoc(user.uid)).catch(() => {});
     await deleteUser(user);
+    GoogleSignin.revokeAccess().catch(() => {});
   });
 }
