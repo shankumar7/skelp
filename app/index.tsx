@@ -37,6 +37,7 @@ import { ArenaFlow } from "@/components/skelp/ArenaFlow";
 import { Dashboard } from "@/components/skelp/Dashboard";
 import { PlayerPool } from "@/components/skelp/PlayerPool";
 import { Session } from "@/game/net/session";
+import { setSoundOn } from "@/game/sound";
 import { load, Profile, recordAuction, signIn, signInGuest, signOut, signUp, Stats } from "@/game/storage";
 import CREDITS from "@/game/data/credits.json";
 
@@ -140,7 +141,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             </View>
             <Text style={s.aboutHeroTitle}>SKELP!</Text>
             <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.0</Text></View>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.1</Text></View>
             </View>
           </Animated.View>
 
@@ -317,7 +318,7 @@ export default function HomeScreen() {
   const [showPool, setShowPool] = useState(false);
 
   // the saved profile and stats live on this phone only
-  useEffect(() => { load().then((d) => { setProfile(d.current); setStats(d.stats); setStored(true); }); }, []);
+  useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setStored(true); }); }, []);
 
   if (!fontsLoaded || !stored || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded && stored} onDone={() => setBootDone(true)} />;
 

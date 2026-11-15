@@ -13,10 +13,10 @@ export interface Profile {
 }
 export interface HistoryItem { date: number; arena: string; rank: number; teams: number; power: number; spent: number; players: number }
 export interface Stats { auctions: number; wins: number; spent: number; history: HistoryItem[] }
-interface Saved { account: Profile | null; current: Profile | null; stats: Stats }
+interface Saved { account: Profile | null; current: Profile | null; stats: Stats; sound: boolean }
 
 const KEY = "skelp.v1";
-const EMPTY: Saved = { account: null, current: null, stats: { auctions: 0, wins: 0, spent: 0, history: [] } };
+const EMPTY: Saved = { account: null, current: null, stats: { auctions: 0, wins: 0, spent: 0, history: [] }, sound: true };
 let cache: Saved | null = null;
 
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -85,4 +85,8 @@ export async function recordAuction(item: HistoryItem): Promise<Stats> {
   };
   await save({ ...d, stats });
   return stats;
+}
+export async function saveSound(on: boolean) {
+  const d = await load();
+  await save({ ...d, sound: on });
 }

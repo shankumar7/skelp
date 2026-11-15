@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatMoney } from "@/game/money";
 import { COUNTRY_LABEL, Player, PLAYERS, Role, ROLE_LABEL } from "@/game/players";
 import { PlayerPhoto } from "./PlayerPhoto";
-import { CLAY_SOFT, s } from "./ui";
+import { CLAY_HEADER, CLAY_SOFT, s } from "./ui";
 
 const FILTERS = ["ALL", "BAT", "BOWL", "AR", "WK", "OVERSEAS"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -23,7 +23,7 @@ export function PlayerPool({ insets, onBack }: { insets: any; onBack: () => void
 
   return (
     <View style={[s.screen, { backgroundColor: "#F1EADF" }]}>
-      <View style={[s.roomHeader, { paddingTop: insets.top + 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1EADF" }]}>
+      <View style={[s.roomHeader, { paddingTop: insets.top + 8, paddingBottom: 14 }, CLAY_HEADER]}>
         <Pressable onPress={onBack} style={s.arenaBackBtn} accessibilityLabel="Back"><Ionicons name="arrow-back" size={22} color="#2A2545" /></Pressable>
         <View style={s.arenaTitleBox}>
           <Text style={s.arenaCode}>PLAYER POOL</Text>

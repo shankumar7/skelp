@@ -8,7 +8,7 @@ ABIS="${ABIS:-arm64-v8a,armeabi-v7a}"
 
 [ -d node_modules ] || npm ci
 npx expo prebuild --platform android --no-install --clean
-(cd android && ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures="$ABIS")
+(cd android && ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures="$ABIS" -Pexpo.useLegacyPackaging=true)
 mkdir -p release
 cp android/app/build/outputs/apk/release/app-release.apk release/skelp.apk
 ls -lh release/skelp.apk

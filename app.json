@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
@@ -24,11 +24,15 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_WIFI_STATE"
       ],
-      "versionCode": 1,
+      "versionCode": 2,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.SYSTEM_ALERT_WINDOW"
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "web": {
@@ -47,7 +51,35 @@
           "backgroundColor": "#FBF7F0"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "useLegacyPackaging": true,
+            "buildArchs": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ],
+            "packagingOptions": {
+              "exclude": [
+                "org/bouncycastle/pqc/**",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+              ]
+            },
+            "extraProguardRules": "# Skelp: the LAN socket module is looked up by name from JavaScript\n-keep class com.asterinet.react.tcpsocket.** { *; }\n-dontwarn org.bouncycastle.**\n-dontwarn javax.naming.**"
+          }
+        }
+      ]
     ],
     "updates": {
       "enabled": false,

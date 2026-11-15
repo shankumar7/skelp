@@ -1,5 +1,6 @@
 import { View, StyleSheet, Pressable, Animated, Easing, Dimensions, Alert, Platform } from "react-native";
 import { useEffect, useRef } from "react";
+import { play } from "@/game/sound";
 
 export const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -75,7 +76,7 @@ export function FormBackground() {
 // --- ANIMATED PRESSABLE ---
 export const AnimatedPressable = ({ children, onPress, style, disabled }: any) => {
   const scale = useRef(new Animated.Value(1)).current;
-  const onPressIn = () => { if (!disabled) Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start(); };
+  const onPressIn = () => { if (!disabled) { play("tap", 0.5); Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start(); } };
   const onPressOut = () => { if (!disabled) Animated.spring(scale, { toValue: 1, friction: 5, tension: 50, useNativeDriver: true }).start(); };
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} disabled={disabled}>
@@ -90,6 +91,8 @@ export const CLAY_SOFT = "0px 5px 12px rgba(42, 37, 69, 0.08), inset 0px -4px 7p
 export const CLAY_POCKET = "inset 0px 5px 9px rgba(42, 37, 69, 0.13), inset 0px -4px 7px rgba(255, 255, 255, 0.95)";
 export const CLAY_PRIMARY = "0px 12px 22px rgba(91, 95, 239, 0.38), inset 0px -8px 12px rgba(40, 40, 150, 0.40), inset 0px 8px 12px rgba(255, 255, 255, 0.38)";
 export const CLAY_MINT = "0px 12px 22px rgba(46, 196, 160, 0.38), inset 0px -8px 12px rgba(10, 110, 85, 0.40), inset 0px 8px 12px rgba(255, 255, 255, 0.40)";
+/** Rounded, floating top bar used by the in-game screens. */
+export const CLAY_HEADER = { backgroundColor: "#FFF", borderBottomLeftRadius: 28, borderBottomRightRadius: 28, zIndex: 5, boxShadow: "0px 8px 18px rgba(42, 37, 69, 0.09), inset 0px -6px 10px rgba(42, 37, 69, 0.05)" } as const;
 
 export const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#FAF5EC", overflow: "hidden" },
@@ -218,7 +221,7 @@ export const s = StyleSheet.create({
   avatarMiniTag: { fontFamily: 'Inter_800ExtraBold', fontSize: 6, marginTop: 4, letterSpacing: 0.5 },
   avatarItemOn: { transform: [{ scale: 1.1 }] },
   avatarFooter: { marginTop: 'auto', marginBottom: 40, width: '100%' },
-  dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 20, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1EADF' },
+  dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 20, backgroundColor: '#FFF', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, zIndex: 5, boxShadow: "0px 8px 18px rgba(42, 37, 69, 0.09), inset 0px -6px 10px rgba(42, 37, 69, 0.05)" },
   dashGreeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, color: '#A39DB5', letterSpacing: 2 },
   dashName: { fontFamily: 'LuckiestGuy_400Regular', fontSize: 22, color: '#2A2545' },
   dashUserCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#EEEDFF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#DDDCFF', boxShadow: CLAY_SOFT },

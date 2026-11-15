@@ -15,16 +15,18 @@ export function useSession(session: Session): Snapshot {
   return value;
 }
 
-/** Seconds left on the current lot, animated locally between host updates. */
-export function useCountdown({ state, status, stamp }: Snapshot): number {
+/** Time left on the current lot (whole seconds, and as a 0..1 fraction of the bid clock), animated locally between host updates. */
+export function useCountdown({ state, status, stamp }: Snapshot): { seconds: number; fraction: number } {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(t);
   }, []);
   const lot = state?.lot;
-  if (!state || !lot) return 0;
+  if (!state || !lot) return { seconds: 0, fraction: 0 };
   const running = lot.status === "open" && !state.paused && status === "live";
   const elapsed = running || lot.status !== "open" ? Math.max(0, now - stamp) : 0;
-  return Math.max(0, Math.ceil((lot.remainMs - elapsed) / 1000));
+  const ms = Math.max(0, lot.remainMs - elapsed);
+  const total = lot.status === "open" ? state.config.timer * 1000 : 3000;
+  return { seconds: Math.ceil(ms / 1000), fraction: Math.min(1, ms / total) };
 }

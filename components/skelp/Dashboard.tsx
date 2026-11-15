@@ -6,7 +6,8 @@ import { formatMoney } from "@/game/money";
 import { getLocalIp, transport } from "@/game/net/native";
 import { ArenaInfo } from "@/game/net/protocol";
 import { ClientSession, HostSession, resolveCode, scan, Session } from "@/game/net/session";
-import { Profile, Stats } from "@/game/storage";
+import { isSoundOn, play, setSoundOn } from "@/game/sound";
+import { Profile, saveSound, Stats } from "@/game/storage";
 import { notify, s } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
@@ -16,6 +17,7 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
   const [arenas, setArenas] = useState<ArenaInfo[]>([]);
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [soundOn, setSound] = useState(isSoundOn());
   const scanRef = useRef<{ cancel(): void } | null>(null);
   const me = { id: profile.id, name: profile.name, avatar: profile.avatar };
 
@@ -81,6 +83,7 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
             <Text style={s.dashName} numberOfLines={1}>{profile.name.toUpperCase()}</Text>
           </View>
         </View>
+        <Pressable onPress={() => { const on = !soundOn; setSound(on); setSoundOn(on); saveSound(on); if (on) play("bid"); }} style={[s.dashLogout, { marginRight: 10 }]} accessibilityLabel={soundOn ? "Mute sounds" : "Turn sounds on"}><Ionicons name={soundOn ? "volume-high" : "volume-mute"} size={22} color={soundOn ? "#5B5FEF" : "#A39DB5"} /></Pressable>
         <Pressable onPress={onLogout} style={s.dashLogout} accessibilityLabel="Log out"><Ionicons name="log-out-outline" size={24} color="#7A748F" /></Pressable>
       </View>
 
@@ -141,9 +144,9 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
 
         <View style={s.dashSectionHeader}><Text style={s.dashSectionTitle}>YOUR PERFORMANCE</Text></View>
         <Animated.View style={[s.dashStatsRow, slideUp(300)]}>
-          <View style={s.dashStatBox}><Text style={s.dashStatVal}>{stats.auctions}</Text><Text style={s.dashStatLab}>AUCTIONS</Text></View>
-          <View style={s.dashStatBox}><Text style={s.dashStatVal}>{stats.wins}</Text><Text style={s.dashStatLab}>WINS</Text></View>
-          <View style={s.dashStatBox}><Text style={[s.dashStatVal, stats.spent >= 1000 && { fontSize: 18 }]} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(stats.spent)}</Text><Text style={s.dashStatLab}>SPENT</Text></View>
+          <View style={s.dashStatBox}><StatIcon name="hammer" color="#5B5FEF" /><Text style={s.dashStatVal}>{stats.auctions}</Text><Text style={s.dashStatLab}>AUCTIONS</Text></View>
+          <View style={s.dashStatBox}><StatIcon name="trophy" color="#FFB238" /><Text style={s.dashStatVal}>{stats.wins}</Text><Text style={s.dashStatLab}>WINS</Text></View>
+          <View style={s.dashStatBox}><StatIcon name="wallet" color="#2EC4A0" /><Text style={[s.dashStatVal, stats.spent >= 1000 && { fontSize: 18 }]} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(stats.spent)}</Text><Text style={s.dashStatLab}>SPENT</Text></View>
         </Animated.View>
 
         <View style={s.dashSectionHeader}><Text style={s.dashSectionTitle}>RECENT AUCTIONS</Text></View>
@@ -175,6 +178,14 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
           </Pressable>
         </Animated.View>
       </ScrollView>
+    </View>
+  );
+}
+
+function StatIcon({ name, color }: { name: any; color: string }) {
+  return (
+    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: color, alignItems: "center", justifyContent: "center", marginBottom: 10, boxShadow: `0px 6px 12px ${color}55, inset 0px -4px 6px rgba(0, 0, 0, 0.18), inset 0px 4px 6px rgba(255, 255, 255, 0.45)` }}>
+      <Ionicons name={name} size={18} color="#FFF" />
     </View>
   );
 }

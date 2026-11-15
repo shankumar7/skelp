@@ -27,7 +27,7 @@ function wrap(raw: any): Sock {
   };
   raw.on("data", (d: any) => {
     buf += typeof d === "string" ? d : d.toString("utf8");
-    if (buf.length > 4_000_000) { buf = ""; raw.destroy(); return; }
+    if (buf.length > 512_000) { buf = ""; raw.destroy(); return; } // nobody legitimately sends half a megabyte without a newline
     let i: number;
     while ((i = buf.indexOf("\n")) >= 0) {
       const line = buf.slice(0, i);

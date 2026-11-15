@@ -5,12 +5,16 @@ import { spent, squadPower, standings, State } from "@/game/engine";
 import { formatMoney } from "@/game/money";
 import { getPlayer } from "@/game/players";
 import { Squads } from "./Arena";
+import { useEffect } from "react";
+import { play } from "@/game/sound";
 import { AnimatedPressable, s } from "./ui";
 
 /** Final table once the hammer has fallen on the last player. */
 export function Results({ state, myId, insets, onExit }: { state: State; myId: string; insets: any; onExit: () => void }) {
   const table = standings(state);
   const champ = table[0];
+  const iWon = champ?.id === myId;
+  useEffect(() => { play(iWon ? "win" : "sold"); }, [iWon]);
   const sales = state.teams.flatMap((t) => t.squad.map((e) => ({ ...e, team: t })));
   const top = sales.slice().sort((a, b) => b.price - a.price)[0];
   // steal of the auction: the most rating points per crore among quality players
