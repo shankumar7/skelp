@@ -11,9 +11,22 @@ def font(key, size):
     return ImageFont.truetype(str(C.FONTS[key]), size)
 
 
+GRAD = ("grad", (86, 92, 245), (160, 92, 236))        # periwinkle -> violet, for accent lines
+
+
 @lru_cache(maxsize=512)
 def text_img(text, key, size, color, tracking=0):
-    """Text on a transparent strip whose height is the font's full line box (so words share a baseline)."""
+    """Text on a transparent strip whose height is the font's full line box (so words share a baseline).
+    `color` is an RGB tuple, or ("grad", top_left, bottom_right) for a gradient fill."""
+    if color and color[0] == "grad":
+        mask = text_img(text, key, size, (255, 255, 255), tracking).getchannel("A")
+        w, h = mask.size
+        import numpy as np
+        ramp = np.clip((np.linspace(0, 1, w)[None, :] * 0.75 + np.linspace(0, 1, h)[:, None] * 0.25), 0, 1)[..., None]
+        rgb = (np.asarray(color[1]) * (1 - ramp) + np.asarray(color[2]) * ramp).astype("uint8")
+        img = Image.fromarray(rgb, "RGB").convert("RGBA")
+        img.putalpha(mask)
+        return img
     f = font(key, size)
     asc, desc = f.getmetrics()
     if tracking:

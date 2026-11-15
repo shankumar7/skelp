@@ -44,7 +44,7 @@ def assemble():
     listing = C.BUILD / "scenes.txt"
     listing.write_text("".join(f"file '{scene_file(n).name}'\n" for n, _, _ in C.SCENES))
     C.OUTPUT.mkdir(exist_ok=True)
-    out = C.OUTPUT / "final_promo.mp4"
+    out = C.OUTPUT / C.OUTPUT_NAME
     vf = f"fade=t=in:st=0:d=0.5:color=white,fade=t=out:st={C.DURATION - 0.9}:d=0.9:color=white,format=yuv420p"
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-i", str(audio),
            "-vf", vf, "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-profile:v", "high", "-level", "4.1", "-r", str(C.FPS),
@@ -92,8 +92,8 @@ def main():
             for name, frames, secs in pool.imap_unordered(render_scene, todo):
                 print(f"  rendered {name:15s} {frames:4d} frames in {secs:5.1f}s ({frames / secs:.1f} fps)")
     if not (C.BUILD / "soundtrack.wav").exists():
-        from render import make_audio
-        make_audio.main()
+        from render import music_bed
+        music_bed.main()
     out = assemble()
     print("final:", out)
     if not verify(out):
