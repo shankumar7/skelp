@@ -58,7 +58,7 @@ function wrap(raw: any): Sock {
  * Wi-Fi: a hotspot has no internet, so the phone would otherwise send our traffic over mobile data
  * and never reach the host. The plain variant is the fallback for a phone that *is* the hotspot.
  */
-export function makeTransport(net: any, variants: Record<string, unknown>[] = [{}]): Transport {
+export function makeTransport(net: any, variants: Record<string, unknown>[] | (() => Record<string, unknown>[]) = [{}]): Transport {
   const connectOnce = (host: string, port: number, timeoutMs: number, extra: Record<string, unknown>): Promise<Sock> =>
     new Promise((resolve, reject) => {
       let done = false;
@@ -110,7 +110,7 @@ export function makeTransport(net: any, variants: Record<string, unknown>[] = [{
     },
     async connect(host, port, timeoutMs = 3000) {
       let lastError: unknown = new Error("unreachable");
-      for (const extra of variants) {
+      for (const extra of typeof variants === "function" ? variants() : variants) {
         try {
           return await connectOnce(host, port, timeoutMs, extra);
         } catch (e) {
