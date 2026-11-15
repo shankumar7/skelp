@@ -7,7 +7,7 @@
 <p align="center"><b>The IPL-style player auction you play with your friends — fully offline.</b></p>
 
 <p align="center">
-  <a href="https://github.com/shankumar7/skelp/releases/latest/download/skelp.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-5B5FEF?style=for-the-badge&logo=android&logoColor=white" alt="Download the Android APK" /></a>
+  <a href="https://github.com/shankumar7/skelp/raw/main/release/skelp.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-5B5FEF?style=for-the-badge&logo=android&logoColor=white" alt="Download the Android APK" /></a>
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ to that phone's **mobile hotspot** — joins it directly, phone to phone.
 
 ## Install
 
-1. On your Android phone, tap **[Download the APK](https://github.com/shankumar7/skelp/releases/latest/download/skelp.apk)** — the file downloads straight away.
+1. On your Android phone, tap **[Download the APK](https://github.com/shankumar7/skelp/raw/main/release/skelp.apk)** — the file downloads straight away.
 2. Open the downloaded file and allow *Install unknown apps* when Android asks.
 3. Launch **Skelp!**, create a profile (or continue as a guest) and pick an avatar.
 
