@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
@@ -24,7 +24,7 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_WIFI_STATE"
       ],
-      "versionCode": 2,
+      "versionCode": 3,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -78,6 +78,13 @@
             },
             "extraProguardRules": "# Skelp: the LAN socket module is looked up by name from JavaScript\n-keep class com.asterinet.react.tcpsocket.** { *; }\n-dontwarn org.bouncycastle.**\n-dontwarn javax.naming.**"
           }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Skelp! uses the camera to scan the host's QR code and join their arena.",
+          "recordAudioAndroid": false
         }
       ]
     ],

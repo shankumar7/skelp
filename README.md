@@ -58,7 +58,8 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | | |
 | --- | --- |
 | 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. No internet, no account on any server. |
-| 🔎 **Automatic discovery** | Tap *Find nearby arenas* and the app finds the host, or type the arena code. |
+| 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Find nearby arenas*, or type the arena code. |
+| 📡 **Hotspot guide** | The app tells you when you are not on Wi-Fi and has one-tap shortcuts to the phone's hotspot and Wi-Fi settings. |
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
 | 👥 **137 players** | Role, country, base price and rating for each; 85 with a freely-licensed photo. |
 | 🤖 **Bots** | Practise solo against AI bidders, or add bots to fill empty seats. |
@@ -72,9 +73,10 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
 1. **Get everyone on one network.** Join the same Wi-Fi, or one person turns on their
    **mobile hotspot** and the others connect to it. Mobile data can stay off.
-2. **Host:** tap **HOST YOUR OWN ARENA**. The lobby shows an **arena code**.
-3. **Everyone else:** tap **FIND NEARBY ARENAS** and tap the arena when it appears under *Live auctions*.
-   If it does not show up, type the arena code (or the host address shown in the host's lobby) in the search box.
+   The dashboard has **HOTSPOT** and **WI-FI** buttons that open the right settings page.
+2. **Host:** tap **HOST YOUR OWN ARENA**. The lobby shows a **QR code** and an **arena code**.
+3. **Everyone else:** tap **SCAN QR** and point the camera at the host's screen.
+   Or tap **FIND NEARBY ARENAS** and pick the arena under *Live auctions*, or type the arena code in the search box.
 4. The host picks a mode and the bid clock, optionally adds bots, and taps **START AUCTION**.
 5. Bid, jump-bid or pass on each player. When the clock runs out the player is **SOLD** to the highest bidder.
 6. When every player has been through, the final table ranks the squads.
@@ -109,6 +111,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 ```
 
 - `game/engine.ts` is a pure reducer holding all the rules. The host applies every action and broadcasts the resulting state, so all phones always agree.
+- On Android every connection is bound to the Wi-Fi network. A hotspot has no internet, so the phone would otherwise route the app over mobile data and never reach the host.
 - `game/net/` is the LAN layer: newline-delimited JSON over a plain TCP socket ([react-native-tcp-socket](https://github.com/Rapsssito/react-native-tcp-socket)), heartbeats, automatic reconnect, and discovery by probing the hotspot gateway and then the rest of the local subnet.
 - The countdown is animated locally on each phone between host updates, so the clock stays smooth without flooding the network.
 
@@ -117,7 +120,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 - **Nothing leaves your network.** There is no backend, analytics or advertising. Profiles, stats and history are stored only on the phone.
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
 - **Untrusted input is bounded.** Names, avatars and ids from other phones are length-checked and sanitised, oversized messages drop the connection, reactions are rate-limited, and phones ignore malformed data from a host.
-- **Minimal permissions:** network and Wi-Fi state (to find the host) and vibration. No location, storage, contacts, camera or microphone.
+- **Minimal permissions:** network and Wi-Fi state (to find the host), vibration, and the camera — asked for only when you tap *Scan QR*, and used only to read the code. No location, storage, contacts or microphone.
 - The local profile password only keeps casual hands out of your profile on your own phone; it is not sent anywhere. The link between phones is not encrypted, so play on a network you trust.
 
 ## Development

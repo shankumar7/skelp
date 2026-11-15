@@ -1,9 +1,10 @@
 import TcpSocket from "react-native-tcp-socket";
 import * as Network from "expo-network";
+import { Platform } from "react-native";
 import { makeTransport, Transport } from "./transport";
 
 /** Real TCP sockets on Android / iOS. */
-export const transport: Transport | null = makeTransport(TcpSocket);
+export const transport: Transport | null = makeTransport(TcpSocket, Platform.OS === "android" ? [{ interface: "wifi" }, {}] : [{}]);
 
 /** This phone's Wi-Fi address, or null when it is the hotspot owner / offline. */
 export async function getLocalIp(): Promise<string | null> {

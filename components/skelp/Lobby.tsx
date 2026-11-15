@@ -5,8 +5,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Config, MAX_TEAMS, PRESETS, State } from "@/game/engine";
 import { formatMoney } from "@/game/money";
 import { getLocalIp } from "@/game/net/native";
-import { Session } from "@/game/net/session";
-import { CLAY_HEADER, s } from "./ui";
+import { makeJoinLink, Session } from "@/game/net/session";
+import { openHotspotSettings } from "@/game/net/settings";
+import { QrCode } from "./QrCode";
+import { CLAY_CARD, CLAY_HEADER, CLAY_SOFT, s } from "./ui";
 
 const MODES: Config["mode"][] = ["QUICK", "CLASSIC", "MEGA"];
 const TIMERS = [10, 15, 20];
@@ -47,7 +49,7 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
                 <Text style={st.codeLabel}>ARENA CODE</Text>
                 <Text style={[s.arenaPlayerName, { fontSize: 48 }]}>{code ? `#${code}` : "HOTSPOT"}</Text>
                 <Text style={s.arenaPlayerMeta}>{ip ? `HOST ADDRESS ${ip}` : "YOUR PHONE IS THE HOTSPOT / NO WI-FI ADDRESS"}</Text>
-                <Text style={st.hint}>Friends on the same Wi-Fi or hotspot open Skelp! and tap FIND NEARBY ARENAS{code ? `, or type code ${code}` : ""}. No internet needed.</Text>
+                <Text style={st.hint}>No internet needed. Everyone just has to be on the same Wi-Fi or on your hotspot.</Text>
               </>
             ) : (
               <>
@@ -57,6 +59,24 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
             )}
           </LinearGradient>
         </View>
+
+        {session.lan && host && (
+          <View style={st.joinCard}>
+            <Text style={s.aboutInfoHeadline}>HOW FRIENDS JOIN</Text>
+            <View style={{ flexDirection: "row" }}>
+              <View style={st.qrBox}><QrCode value={makeJoinLink(ip)} size={132} /></View>
+              <View style={{ flex: 1, marginLeft: 16, justifyContent: "center" }}>
+                <Step n={1} text={ip ? "Everyone joins the same Wi-Fi as you — or turn on your hotspot and let them connect to it." : "Turn on your mobile hotspot and tell your friends its name and password."} />
+                <Step n={2} text="They connect to it from their Wi-Fi settings." />
+                <Step n={3} text={`In Skelp! they tap SCAN QR and point at this code${code ? `, or type code ${code}` : ", or tap FIND NEARBY ARENAS"}.`} />
+              </View>
+            </View>
+            <Pressable onPress={openHotspotSettings} style={st.settingsBtn} accessibilityLabel="Open hotspot settings">
+              <Ionicons name="wifi" size={16} color="#5B5FEF" />
+              <Text style={st.settingsText}>OPEN HOTSPOT SETTINGS</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={[s.dashSectionHeader, { paddingHorizontal: 24, marginTop: 24 }]}>
           <Text style={s.dashSectionTitle}>TEAMS {state.teams.length}/{MAX_TEAMS}</Text>
@@ -124,6 +144,14 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
   );
 }
 
+function Step({ n, text }: { n: number; text: string }) {
+  return (
+    <View style={{ flexDirection: "row", marginBottom: 8 }}>
+      <View style={st.stepDot}><Text style={st.stepNum}>{n}</Text></View>
+      <Text style={st.stepText}>{text}</Text>
+    </View>
+  );
+}
 function Tag({ text, color }: { text: string; color: string }) {
   return <View style={[st.tag, { backgroundColor: color + "1A" }]}><Text style={[st.tagText, { color }]}>{text}</Text></View>;
 }
@@ -132,6 +160,13 @@ function Rule({ v, l }: { v: string; l: string }) {
 }
 
 const st = StyleSheet.create({
+  joinCard: { backgroundColor: "#FFF", borderRadius: 28, padding: 20, marginHorizontal: 20, marginTop: 16, boxShadow: CLAY_CARD },
+  qrBox: { borderRadius: 18, overflow: "hidden", alignSelf: "flex-start", boxShadow: CLAY_SOFT },
+  stepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#5B5FEF", alignItems: "center", justifyContent: "center", marginRight: 8, marginTop: 1 },
+  stepNum: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: "#FFF" },
+  stepText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#3B3560", lineHeight: 16 },
+  settingsBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#EEEDFF", borderRadius: 16, paddingVertical: 12, marginTop: 14, boxShadow: CLAY_SOFT },
+  settingsText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, color: "#5B5FEF", letterSpacing: 1 },
   codeLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#D3D1FF", letterSpacing: 3 },
   hint: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#DDDCFF", marginTop: 12, lineHeight: 18 },
   note: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#A39DB5", letterSpacing: 1, textAlign: "center", marginBottom: 8 },

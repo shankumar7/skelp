@@ -6,9 +6,11 @@ import { formatMoney } from "@/game/money";
 import { getLocalIp, transport } from "@/game/net/native";
 import { ArenaInfo } from "@/game/net/protocol";
 import { ClientSession, HostSession, resolveCode, scan, Session } from "@/game/net/session";
+import { openHotspotSettings, openWifiSettings } from "@/game/net/settings";
+import { QrScanner } from "./QrScanner";
 import { isSoundOn, play, setSoundOn } from "@/game/sound";
 import { Profile, saveSound, Stats } from "@/game/storage";
-import { notify, s } from "./ui";
+import { CLAY_CARD, notify, s } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
 export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void }) {
@@ -19,6 +21,9 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
   const [busy, setBusy] = useState(false);
   const [soundOn, setSound] = useState(isSoundOn());
   const scanRef = useRef<{ cancel(): void } | null>(null);
+  const [myIp, setMyIp] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+  const autoJoin = useRef(false);
   const me = { id: profile.id, name: profile.name, avatar: profile.avatar };
 
   const rescan = useCallback(async () => {
@@ -27,10 +32,20 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
     setArenas([]);
     setScanning(true);
     const ip = await getLocalIp();
-    const job = scan(transport, ip, (a) => setArenas((list) => (list.some((x) => x.host === a.host) ? list : [...list, a])));
+    setMyIp(ip);
+    const job = scan(transport, ip, (a) => {
+      setArenas((list) => (list.some((x) => x.host === a.host) ? list : [...list, a]));
+      // came here from a QR code without an address: walk straight into the first open arena
+      if (autoJoin.current && a.phase === "lobby") { autoJoin.current = false; joinRef.current(a.host); }
+    });
     scanRef.current = job;
     await job.done;
-    if (scanRef.current === job) setScanning(false);
+    if (scanRef.current !== job) return;
+    setScanning(false);
+    if (autoJoin.current) {
+      autoJoin.current = false;
+      notify("COULD NOT FIND THE ARENA", "Make sure this phone is connected to the host's hotspot (or the same Wi-Fi) in Wi-Fi settings, then scan again.");
+    }
   }, []);
 
   useEffect(() => {
@@ -44,10 +59,18 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
     transform: [{ translateY: dashAnim.interpolate({ inputRange: [0, 1], outputRange: [20 + delay / 10, 0] }) }],
   });
 
-  const join = (host: string) => {
+  const join = (host: string, port?: number) => {
     if (!transport) return notify("NOT AVAILABLE HERE", "Joining arenas over Wi-Fi works in the Android app. Try SOLO PRACTICE here.");
     scanRef.current?.cancel();
-    onEnter(new ClientSession(transport, host, me));
+    onEnter(new ClientSession(transport, host, me, port));
+  };
+  const joinRef = useRef(join);
+  joinRef.current = join;
+  const onQr = (link: { host: string | null; port: number }) => {
+    setShowQr(false);
+    if (link.host) return join(link.host, link.port);
+    autoJoin.current = true; // the host is a hotspot and does not know its own address: search for it
+    rescan();
   };
   const joinByCode = async () => {
     if (!code.trim()) return;
@@ -72,6 +95,8 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
       setBusy(false);
     }
   };
+
+  if (showQr) return <QrScanner insets={insets} onClose={() => setShowQr(false)} onScanned={onQr} />;
 
   return (
     <View style={[s.screen, { backgroundColor: "#F1EADF" }]}>
@@ -104,6 +129,24 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
               <View style={s.dashJoinArrow}>{scanning ? <ActivityIndicator color="#FFF" /> : <Ionicons name="wifi" size={24} color="#FFF" />}</View>
             </LinearGradient>
           </Pressable>
+        </Animated.View>
+
+        <Animated.View style={[{ backgroundColor: "#FFF", borderRadius: 24, padding: 16, marginTop: 16, boxShadow: CLAY_CARD }, slideUp(150)]}>
+          <View style={s.row}>
+            <View style={[s.arenaDot, { width: 8, height: 8, borderRadius: 4, backgroundColor: myIp ? "#2EC4A0" : "#FFB238", marginRight: 8 }]} />
+            <Text style={[s.arenaStatLabel, { marginBottom: 0, flex: 1 }]} numberOfLines={1}>{myIp ? `ON WI-FI • ${myIp}` : "NOT ON WI-FI — JOIN THE HOST'S HOTSPOT, OR HOST WITH YOURS"}</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+            <Pressable onPress={() => setShowQr(true)} style={[s.arenaQuickBid, { flexDirection: "row", gap: 8, backgroundColor: "#EEEDFF" }]} accessibilityLabel="Scan QR to join">
+              <Ionicons name="qr-code" size={16} color="#5B5FEF" /><Text style={[s.arenaQuickBidText, { color: "#5B5FEF", fontSize: 11 }]}>SCAN QR</Text>
+            </Pressable>
+            <Pressable onPress={openWifiSettings} style={[s.arenaQuickBid, { flexDirection: "row", gap: 8 }]} accessibilityLabel="Open Wi-Fi settings">
+              <Ionicons name="wifi" size={16} color="#5A5478" /><Text style={[s.arenaQuickBidText, { fontSize: 11 }]}>WI-FI</Text>
+            </Pressable>
+            <Pressable onPress={openHotspotSettings} style={[s.arenaQuickBid, { flexDirection: "row", gap: 8 }]} accessibilityLabel="Open hotspot settings">
+              <Ionicons name="radio" size={16} color="#5A5478" /><Text style={[s.arenaQuickBidText, { fontSize: 11 }]}>HOTSPOT</Text>
+            </Pressable>
+          </View>
         </Animated.View>
 
         <View style={s.dashSectionHeader}>

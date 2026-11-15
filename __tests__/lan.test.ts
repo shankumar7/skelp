@@ -5,7 +5,7 @@
 import net from "net";
 import { PRESETS, State } from "../game/engine";
 import { getPlayer } from "../game/players";
-import { ClientSession, HostSession, looksLikeState, probe, resolveCode, scan, candidates, Session } from "../game/net/session";
+import { ClientSession, HostSession, looksLikeState, makeJoinLink, parseJoinLink, probe, resolveCode, scan, candidates, Session } from "../game/net/session";
 import { decode, encode } from "../game/net/protocol";
 import { makeTransport } from "../game/net/transport";
 
@@ -258,4 +258,39 @@ test("waking from the background reconnects a client immediately and resyncs the
   await until(() => a.getStatus() === "live", "instant reconnect", 1200);
   host.wake();
   expect(st(host).teams[1].connected).toBe(true);
+});
+
+test("QR join links round-trip and reject anything else", () => {
+  expect(parseJoinLink(makeJoinLink("192.168.43.1"))).toEqual({ host: "192.168.43.1", port: 47474 });
+  expect(parseJoinLink(makeJoinLink(null))).toEqual({ host: null, port: 47474 }); // hotspot owner: joiners search instead
+  expect(parseJoinLink("skelp://join?h=999.1.1.1&p=47474")).toEqual({ host: null, port: 47474 });
+  expect(parseJoinLink("skelp://join?h=evil.example.com&p=1")).toEqual({ host: null, port: 47474 });
+  expect(parseJoinLink("https://example.com")).toBeNull();
+  expect(parseJoinLink("WIFI:S:home;T:WPA;P:secret;;")).toBeNull();
+});
+
+test("connect falls back to the next variant only when the interface is unavailable", async () => {
+  const host = await hostArena();
+  const calls: any[] = [];
+  const fake = {
+    createServer: net.createServer.bind(net),
+    createConnection(opts: any, cb: any) {
+      calls.push(opts.interface ?? "plain");
+      if (opts.interface === "wifi") {
+        const s = new net.Socket();
+        setTimeout(() => s.emit("error", new Error("Interface wifi unreachable")), 5);
+        return s;
+      }
+      return net.createConnection(opts, cb);
+    },
+  };
+  const t = makeTransport(fake, [{ interface: "wifi" }, {}]);
+  const sock = await t.connect("127.0.0.1", host.port, 1000);
+  expect(calls).toEqual(["wifi", "plain"]);
+  sock.close();
+  // an ordinary failure (nothing listening) must not be retried on another interface
+  calls.length = 0;
+  const t2 = makeTransport({ ...fake, createConnection: (opts: any, cb: any) => { calls.push(opts.interface ?? "plain"); return net.createConnection({ ...opts, interface: undefined }, cb); } }, [{ interface: "wifi" }, {}]);
+  await expect(t2.connect("127.0.0.1", 1, 800)).rejects.toBeTruthy();
+  expect(calls).toEqual(["wifi"]);
 });

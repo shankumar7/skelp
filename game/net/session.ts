@@ -372,7 +372,7 @@ export function looksLikeState(s: any): s is State {
 }
 
 /** Ask one address whether a Skelp! arena is being hosted there. */
-export async function probe(transport: Transport, host: string, port = PORT, timeoutMs = 900): Promise<ArenaInfo | null> {
+export async function probe(transport: Transport, host: string, port = PORT, timeoutMs = 600): Promise<ArenaInfo | null> {
   let sock: Sock;
   try {
     sock = await transport.connect(host, port, timeoutMs);
@@ -388,7 +388,7 @@ export async function probe(transport: Transport, host: string, port = PORT, tim
       resolve(v);
       sock.close();
     };
-    const t = setTimeout(() => done(null), timeoutMs + 600);
+    const t = setTimeout(() => done(null), 1200);
     sock.onLine((line) => {
       const m = decode<ServerMsg>(line);
       if (m?.t === "info" && m.v === PROTOCOL && typeof m.arena === "string") done({ host, arena: m.arena.slice(0, 40), teams: Number(m.teams) || 0, max: Number(m.max) || MAX_TEAMS, phase: m.phase, mode: String(m.mode).slice(0, 12) });
@@ -419,8 +419,30 @@ export function scan(transport: Transport, myIp: string | null, onFound: (a: Are
       if (info && !cancelled) onFound(info);
     }
   };
-  const done = Promise.all(Array.from({ length: 40 }, worker)).then(() => undefined);
+  // The first probe goes alone: on Android it is what switches the app onto the Wi-Fi network,
+  // and it is also the most likely address (the hotspot owner).
+  const first = async () => {
+    if (!list.length) return;
+    const info = await probe(transport, list[next++], port);
+    if (info && !cancelled) onFound(info);
+  };
+  const done = first().then(() => Promise.all(Array.from({ length: 40 }, worker))).then(() => undefined);
   return { done, cancel: () => { cancelled = true; } };
+}
+
+/** What the host's QR code says. The address is left out when the host does not know its own (it is the hotspot). */
+export function makeJoinLink(hostIp: string | null, port = PORT): string {
+  return hostIp ? `skelp://join?h=${hostIp}&p=${port}` : `skelp://join?p=${port}`;
+}
+/** Read a scanned QR code. Returns null when it is not a Skelp! arena code. */
+export function parseJoinLink(text: string): { host: string | null; port: number } | null {
+  const m = /^skelp:\/\/join\?(.*)$/i.exec(String(text).trim().slice(0, 200));
+  if (!m) return null;
+  const params: Record<string, string> = {};
+  for (const part of m[1].split("&")) { const [k, v = ""] = part.split("="); params[k] = v; }
+  const host = params.h && /^\d{1,3}(\.\d{1,3}){3}$/.test(params.h) && params.h.split(".").every((n) => +n <= 255) ? params.h : null;
+  const port = /^\d{2,5}$/.test(params.p ?? "") && +params.p > 0 && +params.p < 65536 ? +params.p : PORT;
+  return { host, port };
 }
 
 /** "ARENA CODE" typed by a player: either a full IP or just the last number of the host's address. */
