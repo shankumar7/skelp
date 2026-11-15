@@ -8,12 +8,13 @@ import { ArenaInfo } from "@/game/net/protocol";
 import { ClientSession, HostSession, resolveCode, scan, Session } from "@/game/net/session";
 import { openHotspotSettings, openWifiSettings } from "@/game/net/settings";
 import { QrScanner } from "./QrScanner";
+import { AccountCard, VerifyBanner } from "./AccountCard";
 import { isSoundOn, play, setSoundOn } from "@/game/sound";
 import { Profile, saveSound, Stats } from "@/game/storage";
 import { CLAY_CARD, notify, s } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
-export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void }) {
+export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, onProfile, onCreateAccount }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void; onProfile: (c: Partial<Profile>) => void; onCreateAccount: () => void }) {
   const dashAnim = useRef(new Animated.Value(0)).current;
   const [code, setCode] = useState("");
   const [arenas, setArenas] = useState<ArenaInfo[]>([]);
@@ -113,6 +114,8 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <VerifyBanner profile={profile} onProfile={onProfile} />
+
         <Animated.View style={[s.dashSearchBox, { paddingVertical: 4 }, slideUp(0)]}>
           <Ionicons name="search" size={20} color="#A39DB5" />
           <TextInput value={code} onChangeText={setCode} onSubmitEditing={joinByCode} placeholder="ENTER ARENA CODE..." placeholderTextColor="#A39DB5" keyboardType="numbers-and-punctuation" returnKeyType="go" autoCapitalize="none" style={[s.dashSearchPlaceholder, { flex: 1, color: "#2A2545", paddingVertical: 10 }]} />
@@ -219,6 +222,7 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool }:
             <View style={[s.dashCreateIconBox, { backgroundColor: "#FFB238", boxShadow: "inset 0px -5px 8px rgba(170, 100, 0, 0.35), inset 0px 5px 8px rgba(255, 255, 255, 0.45)" }]}><Ionicons name="people" size={20} color="#FFF" /></View>
             <Text style={s.dashCreateText}>SCOUT THE PLAYER POOL</Text>
           </Pressable>
+          <AccountCard profile={profile} onCreateAccount={onCreateAccount} onDeleted={onLogout} />
         </Animated.View>
       </ScrollView>
     </View>

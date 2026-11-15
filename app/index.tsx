@@ -38,7 +38,8 @@ import { Dashboard } from "@/components/skelp/Dashboard";
 import { PlayerPool } from "@/components/skelp/PlayerPool";
 import { Session } from "@/game/net/session";
 import { setSoundOn } from "@/game/sound";
-import { load, Profile, recordAuction, signIn, signInGuest, signOut, signUp, Stats } from "@/game/storage";
+import { load, newId, Profile, recordAuction, setSignedIn, signInGuest, signOut, Stats, updateProfile } from "@/game/storage";
+import * as cloud from "@/game/cloud";
 import CREDITS from "@/game/data/credits.json";
 
 function BootSplash({ insets, ready, onDone }: any) {
@@ -141,7 +142,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             </View>
             <Text style={s.aboutHeroTitle}>SKELP!</Text>
             <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.2.1</Text></View>
+              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.3</Text></View>
             </View>
           </Animated.View>
 
@@ -151,7 +152,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
             <Text style={s.aboutInfoBody}>
               Skelp! is the IPL-style player auction you play with your friends: everyone gets the same purse, players come under the hammer one by one, and the highest bid wins.
               {"\n\n"}
-              It works fully offline. One phone hosts the arena and everyone on the same Wi-Fi or mobile hotspot joins it — no internet, no server, no sign-up on the cloud.
+              Auctions run fully offline: one phone hosts the arena and everyone on the same Wi-Fi or mobile hotspot joins it, phone to phone. Create a free account to back up your stats and sign in on any phone, or simply play as a guest.
             </Text>
           </Animated.View>
 
@@ -199,7 +200,7 @@ function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets
   );
 }
 
-function AvatarSelectionScreen({ insets, onSelect, name }: any) {
+function AvatarSelectionScreen({ insets, onSelect, name, busy }: any) {
   const avatars = [
     { n: "shield-checkmark", c: "#5B5FEF", t: "GUARDIAN" },
     { n: "flash", c: "#10B981", t: "SPEED" },
@@ -232,8 +233,8 @@ function AvatarSelectionScreen({ insets, onSelect, name }: any) {
         })}</View>
         <View style={s.avatarFooter}>
           {selectedIdx !== null && (
-            <AnimatedPressable style={s.premiumSubmitBtn} onPress={() => onSelect(avatars[selectedIdx].n, selectedIdx)}>
-              <Text style={s.premiumSubmitBtnText}>ENTER ARENA</Text>
+            <AnimatedPressable style={[s.premiumSubmitBtn, busy && s.btnOff]} disabled={busy} onPress={() => onSelect(avatars[selectedIdx].n, selectedIdx)}>
+              <Text style={s.premiumSubmitBtnText}>{busy ? "CREATING ACCOUNT…" : "ENTER ARENA"}</Text>
             </AnimatedPressable>
           )}
         </View>
@@ -312,34 +313,66 @@ export default function HomeScreen() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
+  const [busy, setBusy] = useState(false);
   const [bootDone, setBootDone] = useState(false);
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
   const [aboutFromCorner, setAboutFromCorner] = useState(false);
   const [showPool, setShowPool] = useState(false);
 
-  // the saved profile and stats live on this phone only
+  // the app runs from the copy on this phone; signed-in players also sync to Firebase
   useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setStored(true); }); }, []);
 
   if (!fontsLoaded || !stored || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded && stored} onDone={() => setBootDone(true)} />;
 
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const handleAuth = async () => {
-    setAuthError("");
-    const name = displayName.trim();
+    setAuthError(""); setAuthNotice("");
+    if (!EMAIL_RE.test(email.trim())) return setAuthError("That email address does not look right.");
     if (isLogin) {
-      const res = await signIn(name, password);
-      if (typeof res === "string") return setAuthError(res);
-      setPending(res);
+      setBusy(true);
+      const res = await cloud.signIn(email, password);
+      setBusy(false);
+      if (!res.ok) return setAuthError(res.error);
+      const v = res.value;
+      const p: Profile = {
+        id: newId(), uid: v.uid, email: v.email, verified: v.verified, guest: false,
+        name: (v.name || v.email.split("@")[0]).slice(0, 16),
+        avatar: v.saved?.avatar ?? "shield-checkmark", avatarIdx: v.saved?.avatarIdx ?? 0,
+      };
+      setStats(await setSignedIn(p, v.saved ? { ...v.saved.stats, history: v.saved.history } : null));
+      setPending(p);
       setIsAuthenticating(true);
       return;
     }
+    const name = displayName.trim();
     if (name.length < 2) return setAuthError("Pick a username with at least 2 characters.");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return setAuthError("That email address does not look right.");
-    if (password.length < 4) return setAuthError("Use a password with at least 4 characters.");
+    if (password.length < 6) return setAuthError("Use a password with at least 6 characters.");
     setIsGuest(false);
     setIsSelectingAvatar(true);
   };
+  const forgotPassword = async () => {
+    setAuthError(""); setAuthNotice("");
+    if (!EMAIL_RE.test(email.trim())) return setAuthError("Type your email address above, then tap Forgot password.");
+    setBusy(true);
+    const res = await cloud.resetPassword(email);
+    setBusy(false);
+    if (!res.ok) return setAuthError(res.error);
+    setAuthNotice(`We sent a password reset link to ${email.trim()}. Check your inbox and spam folder.`);
+  };
   const onAvatar = async (icon: string, idx: number) => {
-    const p = isGuest ? await signInGuest(displayName, icon, idx) : await signUp(displayName, email, password, icon, idx);
+    if (isGuest) {
+      setPending(await signInGuest(displayName, icon, idx));
+      setIsSelectingAvatar(false);
+      setIsAuthenticating(true);
+      return;
+    }
+    setBusy(true);
+    const res = await cloud.signUp(email, password, displayName.trim(), icon, idx);
+    setBusy(false);
+    if (!res.ok) { setAuthError(res.error); setIsSelectingAvatar(false); return; }
+    const p: Profile = { id: newId(), uid: res.value.uid, email: res.value.email, verified: res.value.verified, guest: false, name: displayName.trim(), avatar: icon, avatarIdx: idx };
+    setStats(await setSignedIn(p, null));
     setPending(p);
     setIsSelectingAvatar(false);
     setIsAuthenticating(true);
@@ -348,65 +381,82 @@ export default function HomeScreen() {
     setIsAuthenticating(false);
     setProfile(pending);
     setPending(null);
-    setPassword(""); setEmail(""); setDisplayName(""); setAuthError("");
+    setPassword(""); setEmail(""); setDisplayName(""); setAuthError(""); setAuthNotice("");
   };
-  const logout = () => { signOut(); setProfile(null); setSession(null); setShowGreeting(true); };
+  const logout = async () => {
+    const signedIn = !!profile?.uid;
+    if (signedIn) cloud.logOut();
+    await signOut(signedIn);
+    if (signedIn) setStats({ auctions: 0, wins: 0, spent: 0, history: [] });
+    setProfile(null); setSession(null); setShowGreeting(true);
+  };
+  const startSignUp = async () => { await logout(); setIsLogin(false); setShowGreeting(false); };
+  const onProfile = async (changes: Partial<Profile>) => { const p = await updateProfile(changes); if (p) setProfile(p); };
 
   if (showAbout) return <AboutSkelp onBack={() => setShowAbout(false)} insets={insets} fromCorner={aboutFromCorner} />;
-  if (isSelectingAvatar) return <AvatarSelectionScreen insets={insets} onSelect={onAvatar} name={displayName} />;
+  if (isSelectingAvatar) return <AvatarSelectionScreen insets={insets} onSelect={onAvatar} name={displayName} busy={busy} />;
   if (isAuthenticating) return <AuthenticatingScreen onFinish={onAuthDone} name={pending?.name ?? displayName} />;
 
   if (profile) {
     if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={() => setSession(null)} onFinished={(item) => { recordAuction(item).then(setStats); }} />;
     if (showPool) return <PlayerPool insets={insets} onBack={() => setShowPool(false)} />;
-    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} />;
+    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} />;
   }
-  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
-  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); }} handleAuth={handleAuth} authError={authError} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
+  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
+  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
 }
 
-function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, insets, password, setPassword, displayName, setDisplayName, email, setEmail, onBack, onAbout }: any) {
+function Field({ label, value, onChange, placeholder, focused, onFocus, onBlur, secure, right, ...rest }: any) {
+  return (
+    <View style={s.clayField}>
+      <Text style={s.clayLabel}>{label}</Text>
+      <View style={[s.premiumClayInput, focused && s.premiumClayInputOn]}>
+        <TextInput placeholder={placeholder} placeholderTextColor="#7A748F" value={value} onChangeText={onChange} onFocus={onFocus} onBlur={onBlur} secureTextEntry={secure} style={s.clayInputInner} {...rest} />
+        {right}
+      </View>
+    </View>
+  );
+}
+
+function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, busy, onForgot, insets, password, setPassword, displayName, setDisplayName, email, setEmail, onBack, onAbout }: any) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
   useEffect(() => { fade.setValue(0); slide.setValue(20); Animated.parallel([Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }), Animated.spring(slide, { toValue: 0, tension: 25, friction: 6, useNativeDriver: true })]).start(); }, [isLogin]);
-  const canSubmit = isLogin ? (displayName.trim() && password.trim()) : (displayName.trim() && password.trim() && email.trim());
+  const canSubmit = !busy && (isLogin ? email.trim() && password : email.trim() && password && displayName.trim());
+  const focus = (f: string) => () => setFocusedField(f);
+  const blur = () => setFocusedField(null);
   return (
     <View style={s.screen}>
       <FormBackground />
       <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-        <ScrollView contentContainerStyle={{ paddingTop: insets.top + (isLogin ? 20 : 10), paddingBottom: insets.bottom + 60, paddingHorizontal: 24, flexGrow: 1, justifyContent: "flex-start" }} bounces={false} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingTop: insets.top + (isLogin ? 20 : 10), paddingBottom: insets.bottom + 60, paddingHorizontal: 24, flexGrow: 1, justifyContent: "flex-start" }} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }], flex: 1 }}>
             <View style={s.fullWidthTop}><Pressable style={s.clayBack} onPress={onBack} hitSlop={20}><Text style={s.clayBackText}>←</Text></Pressable><Pressable onPress={onAbout} style={s.clayLogoMini}><Image source={require("../assets/images/circlelogo.png")} style={s.logoImg} resizeMode="contain" /></Pressable></View>
             <View style={s.fullWidthContent}>
               <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: "#5B5FEF" }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
-              <Text style={s.expansiveSub}>{isLogin ? "Welcome Back to the Arena!" : "Your profile is saved on this phone only"}</Text>
+              <Text style={s.expansiveSub}>{isLogin ? "Welcome back to the arena!" : "Your stats are backed up to your account"}</Text>
               <View style={s.clayForm}>
-                {!isLogin && (
-                  <View style={s.clayField}>
-                    <Text style={s.clayLabel}>EMAIL ID</Text>
-                    <View style={[s.premiumClayInput, focusedField === "email" && s.premiumClayInputOn]}>
-                      <TextInput 
-                        placeholder="Your email address" 
-                        placeholderTextColor="#7A748F" 
-                        value={email} 
-                        onChangeText={setEmail} 
-                        onFocus={() => setFocusedField("email")} 
-                        onBlur={() => setFocusedField(null)} 
-                        style={s.clayInputInner} 
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                      />
-                    </View>
-                  </View>
+                {!isLogin && <Field label="USERNAME" placeholder="Name other players will see" value={displayName} onChange={setDisplayName} focused={focusedField === "name"} onFocus={focus("name")} onBlur={blur} maxLength={16} autoCapitalize="words" />}
+                <Field label="EMAIL" placeholder="you@example.com" value={email} onChange={setEmail} focused={focusedField === "email"} onFocus={focus("email")} onBlur={blur} keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" />
+                <Field label="PASSWORD" placeholder={isLogin ? "Your password" : "At least 6 characters"} value={password} onChange={setPassword} focused={focusedField === "pw"} onFocus={focus("pw")} onBlur={blur} secure={!showPassword} autoCapitalize="none" autoComplete={isLogin ? "current-password" : "new-password"}
+                  right={<Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={10}><Text style={s.clayToggleText}>{showPassword ? "HIDE" : "SHOW"}</Text></Pressable>} />
+                {isLogin && (
+                  <Pressable onPress={onForgot} disabled={busy} hitSlop={8} style={{ alignSelf: "flex-end", marginTop: -4 }}>
+                    <Text style={[s.claySwitchLink, { fontSize: 12 }]}>Forgot password?</Text>
+                  </Pressable>
                 )}
-                <View style={s.clayField}><Text style={s.clayLabel}>USERNAME</Text><View style={[s.premiumClayInput, focusedField === "name" && s.premiumClayInputOn]}><TextInput placeholder={isLogin ? "Your username" : "Create username"} placeholderTextColor="#7A748F" value={displayName} onChangeText={setDisplayName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /></View></View>
-                <View style={s.clayField}><Text style={s.clayLabel}>PASSWORD</Text><View style={[s.premiumClayInput, focusedField === "pw" && s.premiumClayInputOn]}><TextInput placeholder="Password" placeholderTextColor="#7A748F" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} onFocus={() => setFocusedField("pw")} onBlur={() => setFocusedField(null)} style={s.clayInputInner} /><Pressable onPress={() => setShowPassword(!showPassword)}><Text style={s.clayToggleText}>{showPassword ? "HIDE" : "SHOW"}</Text></Pressable></View></View>
-                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#FF6B6B", marginLeft: 2 }}>{authError}</Text>}
-                <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}><Text style={s.premiumSubmitBtnText}>{isLogin ? "LOG IN" : "SIGN UP"}</Text></AnimatedPressable>
+                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#E04848", marginLeft: 2, lineHeight: 18 }}>{authError}</Text>}
+                {!!authNotice && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#14806A", marginLeft: 2, lineHeight: 18 }}>{authNotice}</Text>}
+                <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}>
+                  <Text style={s.premiumSubmitBtnText}>{busy ? "PLEASE WAIT…" : isLogin ? "LOG IN" : "CHOOSE AVATAR"}</Text>
+                </AnimatedPressable>
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#A39DB5", textAlign: "center", lineHeight: 16 }}>
+                  {isLogin ? "Signing in needs internet once. Auctions themselves never do." : "We'll email you a link to confirm your address."}
+                </Text>
               </View>
-              <View style={s.claySwitchBox}><Text style={s.claySwitchText}>{isLogin ? "New here? " : "Already member? "}<Text style={s.claySwitchLink} onPress={() => setIsLogin(!isLogin)}>{isLogin ? "Join Now" : "Sign In"}</Text></Text></View>
+              <View style={s.claySwitchBox}><Text style={s.claySwitchText}>{isLogin ? "New here? " : "Already a member? "}<Text style={s.claySwitchLink} onPress={() => setIsLogin(!isLogin)}>{isLogin ? "Create an account" : "Sign in"}</Text></Text></View>
             </View>
           </Animated.View>
         </ScrollView>

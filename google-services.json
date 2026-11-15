@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "909673846969",
+    "project_id": "skelparena",
+    "storage_bucket": "skelparena.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909673846969:android:04165130c2ec38bfbc6368",
+        "android_client_info": {
+          "package_name": "com.classcom.skelp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3zz1Z2nejTN0KxvcS7Cq8t7cVuUj31aE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
