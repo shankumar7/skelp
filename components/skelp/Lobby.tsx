@@ -6,7 +6,7 @@ import { Config, MAX_TEAMS, PRESETS, State } from "@/game/engine";
 import { formatMoney } from "@/game/money";
 import { getLocalIp } from "@/game/net/native";
 import { Session } from "@/game/net/session";
-import { s } from "./ui";
+import { CLAY_HEADER, s } from "./ui";
 
 const MODES: Config["mode"][] = ["QUICK", "CLASSIC", "MEGA"];
 const TIMERS = [10, 15, 20];
@@ -28,7 +28,7 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
 
   return (
     <View style={[s.screen, { backgroundColor: "#FBF7F0" }]}>
-      <View style={[s.roomHeader, { paddingTop: insets.top + 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1EADF" }]}>
+      <View style={[s.roomHeader, { paddingTop: insets.top + 8, paddingBottom: 14 }, CLAY_HEADER]}>
         <Pressable onPress={onExit} style={s.arenaBackBtn} accessibilityLabel="Leave arena"><Ionicons name="close" size={24} color="#2A2545" /></Pressable>
         <View style={s.arenaTitleBox}>
           <Text style={s.arenaCode} numberOfLines={1}>{state.arena.toUpperCase()}</Text>

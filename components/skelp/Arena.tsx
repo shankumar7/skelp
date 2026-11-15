@@ -11,7 +11,9 @@ import { COUNTRY_LABEL, getPlayer, Role, ROLE_LABEL } from "@/game/players";
 import { Snapshot, useCountdown } from "@/game/useSession";
 import { PlayerPhoto } from "./PlayerPhoto";
 import { Tag } from "./Lobby";
-import { CLAY_SOFT, confirm, s } from "./ui";
+import { isSoundOn, play, setSoundOn } from "@/game/sound";
+import { saveSound } from "@/game/storage";
+import { CLAY_HEADER, CLAY_SOFT, confirm, s } from "./ui";
 
 const TABS = ["BIDS", "TEAMS", "SQUADS", "SOLD"] as const;
 
@@ -20,7 +22,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   const state = snapshot.state as State;
   const status = snapshot.status;
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("BIDS");
-  const seconds = useCountdown(snapshot);
+  const [soundOn, setSound] = useState(isSoundOn());
   const lot = state.lot;
   const me = state.teams.find((t) => t.id === session.myId);
   const teamOf = (id: string | null) => state.teams.find((t) => t.id === id);
@@ -30,6 +32,8 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
     if (settled) { stamp.setValue(0); Animated.spring(stamp, { toValue: 1, friction: 4, tension: 60, useNativeDriver: true }).start(); }
   }, [settled, lot?.pid]);
 
+  const pricePop = useRef(new Animated.Value(1)).current;
+
   // --- outbid alert: you held the bid and someone just went higher ---
   const [alert, setAlert] = useState<string | null>(null);
   const prev = useRef<{ pid: number; bidder: string | null; status: string } | null>(null);
@@ -37,8 +41,15 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   useEffect(() => {
     const before = prev.current;
     prev.current = lotPid === undefined ? null : { pid: lotPid, bidder: lotBidder, status: lotStatus! };
-    if (!before || lotPid === undefined || before.pid !== lotPid) return;
+    if (lotPid === undefined) return;
+    if (!before || before.pid !== lotPid) { play("lot", 0.7); return; }
     const myId = session.myId;
+    // the room's soundtrack: your bid, a rival's bid, being outbid, the hammer
+    if (lotStatus === "open" && before.bidder !== lotBidder) play(lotBidder === myId ? "bid" : before.bidder === myId ? "outbid" : "rival", lotBidder === myId || before.bidder === myId ? 1 : 0.6);
+    if (before.status === "open" && lotStatus === "sold") play("sold");
+    if (before.status === "open" && lotStatus === "unsold") play("unsold", 0.8);
+    // the price jumps when it changes
+    if (before.bidder !== lotBidder) { pricePop.setValue(1.25); Animated.spring(pricePop, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }).start(); }
     if (before.bidder === myId && lotBidder !== myId && lotStatus === "open") {
       setAlert(`OUTBID BY ${(state.teams.find((t) => t.id === lotBidder)?.name ?? "A RIVAL").toUpperCase()}!`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -69,7 +80,6 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   const min = nextBid(lot);
   const blocker = status !== "live" ? "Reconnecting to the host…" : lot.status !== "open" ? "Next player coming up…" : bidBlocker(state, me.id, min);
   const canPass = status === "live" && lot.status === "open" && !state.paused && lot.bidder !== me.id && !lot.passed.includes(me.id);
-  const urgent = lot.status === "open" && seconds <= 5;
   const bid = (amount: number) => {
     if (bidBlocker(state, me.id, amount) !== null) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -84,7 +94,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
 
   return (
     <View style={[s.screen, { backgroundColor: "#FBF7F0" }]}>
-      <View style={[s.roomHeader, { paddingTop: insets.top + 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1EADF" }]}>
+      <View style={[s.roomHeader, { paddingTop: insets.top + 8, paddingBottom: 14 }, CLAY_HEADER]}>
         <Pressable onPress={onExit} style={s.arenaBackBtn} accessibilityLabel="Leave arena"><Ionicons name="close" size={24} color="#2A2545" /></Pressable>
         <View style={s.arenaTitleBox}>
           <Text style={s.arenaCode} numberOfLines={1}>{state.arena.toUpperCase()}</Text>
@@ -103,7 +113,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               <View style={st.photoRing}><PlayerPhoto player={player} size={104} light /></View>
               <View style={{ alignItems: "center" }}>
                 <Text style={s.arenaTimerLabel}>{lot.status === "open" ? (state.paused ? "PAUSED" : "CLOSING IN") : "NEXT IN"}</Text>
-                <Text style={[s.arenaTimerVal, urgent && { color: "#FFD6D6" }]} accessibilityLabel={`${seconds} seconds left`}>{seconds}s</Text>
+                <ClockText snapshot={snapshot} />
               </View>
             </View>
             <View style={{ marginTop: 18 }}>
@@ -111,6 +121,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               <Text style={[s.arenaPlayerName, { fontSize: 34 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{player.name.toUpperCase()}</Text>
               <Text style={s.arenaPlayerMeta}>{COUNTRY_LABEL[player.country] ?? player.country} • BASE {formatMoney(player.base)} • RATING {player.rating}</Text>
             </View>
+            <ClockBar snapshot={snapshot} />
             {settled && (
               <Animated.View pointerEvents="none" style={[st.stamp, { borderColor: lot.status === "sold" ? "#7CEBCB" : "#FFB3B3", opacity: stamp, transform: [{ rotate: "-12deg" }, { scale: stamp.interpolate({ inputRange: [0, 1], outputRange: [2.2, 1] }) }] }]}>
                 <Text style={[st.stampText, { color: lot.status === "sold" ? "#7CEBCB" : "#FFB3B3" }]}>{lot.status === "sold" ? "SOLD!" : "UNSOLD"}</Text>
@@ -124,7 +135,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
         <View style={s.arenaStatsRow}>
           <View style={s.arenaStatItem}>
             <Text style={s.arenaStatLabel}>{lot.status === "sold" ? "SOLD FOR" : lot.bidder ? "CURRENT BID" : "BASE PRICE"}</Text>
-            <Text style={s.arenaStatPrice}>{formatMoney(lot.bid)}</Text>
+            <Animated.Text style={[s.arenaStatPrice, { transform: [{ scale: pricePop }] }]}>{formatMoney(lot.bid)}</Animated.Text>
           </View>
           <View style={s.arenaStatDivider} />
           <View style={s.arenaStatItem}>
@@ -146,6 +157,9 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
           {REACTIONS.map((e) => (
             <Pressable key={e} onPress={() => session.react(e)} style={st.reactBtn} accessibilityLabel={`React ${e}`}><Text style={st.reactEmoji}>{e}</Text></Pressable>
           ))}
+          <Pressable onPress={() => { const on = !soundOn; setSound(on); setSoundOn(on); saveSound(on); if (on) play("tap"); }} style={[st.reactBtn, { backgroundColor: soundOn ? "#EEEDFF" : "#F1EADF" }]} accessibilityLabel={soundOn ? "Mute sounds" : "Turn sounds on"}>
+            <Ionicons name={soundOn ? "volume-high" : "volume-mute"} size={20} color={soundOn ? "#5B5FEF" : "#A39DB5"} />
+          </Pressable>
         </View>
 
         <View style={[s.arenaLogHeader, { marginTop: 18, gap: 8 }]}>
@@ -260,6 +274,25 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   );
 }
 
+// The countdown lives in its own small components so the five-times-a-second clock refresh
+// re-renders only these, not the whole arena screen.
+function ClockText({ snapshot }: { snapshot: Snapshot }) {
+  const { seconds } = useCountdown(snapshot);
+  const open = snapshot.state?.lot?.status === "open";
+  const ticking = open && !snapshot.state?.paused && snapshot.status === "live" && seconds > 0 && seconds <= 5;
+  useEffect(() => { if (ticking) play("tick", 0.8); }, [ticking, seconds]); // last five seconds tick audibly
+  return <Text style={[s.arenaTimerVal, open && seconds <= 5 && { color: "#FFD6D6" }]} accessibilityLabel={`${seconds} seconds left`}>{seconds}s</Text>;
+}
+function ClockBar({ snapshot }: { snapshot: Snapshot }) {
+  const { seconds, fraction } = useCountdown(snapshot);
+  const open = snapshot.state?.lot?.status === "open";
+  return (
+    <View style={st.clockTrack}>
+      <View style={[st.clockFill, { width: `${Math.round(fraction * 100)}%`, backgroundColor: !open ? "rgba(255,255,255,0.55)" : seconds <= 5 ? "#FF6B6B" : "#FFD66B" }]} />
+    </View>
+  );
+}
+
 /** One emoji floating up and fading out. */
 function Bubble({ emoji, who, color, x }: { emoji: string; who: string; color: string; x: number }) {
   const a = useRef(new Animated.Value(0)).current;
@@ -323,7 +356,9 @@ const st = StyleSheet.create({
   alertText: { fontFamily: "LuckiestGuy_400Regular", fontSize: 15, color: "#FFF", letterSpacing: 1 },
   roles: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#A39DB5", letterSpacing: 1, textAlign: "center", marginTop: 10 },
   reactRow: { flexDirection: "row", justifyContent: "space-between", marginHorizontal: 20, marginTop: 12 },
-  reactBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", boxShadow: CLAY_SOFT },
+  clockTrack: { height: 10, borderRadius: 5, backgroundColor: "rgba(20, 20, 90, 0.35)", marginTop: 16, overflow: "hidden", boxShadow: "inset 0px 2px 4px rgba(0, 0, 0, 0.25)" },
+  clockFill: { height: "100%", borderRadius: 5 },
+  reactBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", boxShadow: CLAY_SOFT },
   reactEmoji: { fontSize: 21 },
   bubble: { position: "absolute", bottom: 20, alignItems: "center" },
   bubbleEmoji: { fontSize: 38 },

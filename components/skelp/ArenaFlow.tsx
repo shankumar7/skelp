@@ -1,4 +1,4 @@
-import { ActivityIndicator, BackHandler, Text, View } from "react-native";
+import { ActivityIndicator, AppState, BackHandler, Text, View } from "react-native";
 import { useEffect, useRef } from "react";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { spent, squadPower, standings } from "@/game/engine";
@@ -20,6 +20,11 @@ export function ArenaFlow({ session, insets, onExit, onFinished }: { session: Se
   const snapshot = useSession(session);
   const { state, status } = snapshot;
   const recorded = useRef(false);
+  // phones pause apps in the background; when we come back, resync at once
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => { if (next === "active") session.wake(); });
+    return () => sub.remove();
+  }, [session]);
   const phase = state?.phase;
 
   const leaveNow = () => { session.leave(); onExit(); };

@@ -7,6 +7,7 @@
  */
 import { BOT_AVATARS, BOT_NAMES, BotBrain } from "../bots";
 import { Action, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
+import { PLAYERS } from "../players";
 import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, REACTIONS, ServerMsg } from "./protocol";
 import { Listener, Sock, Transport } from "./transport";
 
@@ -24,6 +25,8 @@ export interface Session {
   subscribe(cb: () => void): () => void;
   bid(amount: number): void;
   pass(): void;
+  /** call when the app returns from the background */
+  wake(): void;
   /** throw an emoji reaction into the room */
   react(emoji: string): void;
   /** be told about every reaction (yours included); returns an unsubscribe function */
@@ -61,6 +64,9 @@ abstract class Base {
 }
 
 const TICK_MS = 200;
+/** more sockets than this at once is not a group of friends — refuse the rest */
+const MAX_CONNECTIONS = 40;
+const SAFE_AVATAR = /^[a-z][a-z-]{0,30}$/;
 const DEAD_AFTER_MS = 8000;
 
 export class HostSession extends Base implements Session {
@@ -137,6 +143,7 @@ export class HostSession extends Base implements Session {
   }
 
   private onConn(sock: Sock) {
+    if (this.status === "closed" || this.peers.size >= MAX_CONNECTIONS) return sock.close();
     const peer = { id: null as string | null, seen: Date.now(), lastReact: 0 };
     this.peers.set(sock, peer);
     sock.onLine((line) => {
@@ -150,7 +157,7 @@ export class HostSession extends Base implements Session {
         sock.write(encode({ t: "pong" }));
       } else if (m.t === "hello") {
         if (m.v !== PROTOCOL) return this.reject(sock, "Update Skelp! — app versions do not match");
-        if (typeof m.id !== "string" || !m.id || typeof m.name !== "string") return this.reject(sock, "Bad request");
+        if (typeof m.id !== "string" || !m.id || m.id.length > 64 || typeof m.name !== "string" || m.name.length > 60) return this.reject(sock, "Bad request");
         const known = s.teams.find((t) => t.id === m.id);
         if (known?.isBot || m.id === this.myId) return this.reject(sock, "Bad request");
         if (!known && s.phase !== "lobby") return this.reject(sock, "Auction already started");
@@ -159,7 +166,7 @@ export class HostSession extends Base implements Session {
         for (const [other, p] of this.peers) if (other !== sock && p.id === m.id) { p.id = null; other.close(); }
         peer.id = m.id;
         sock.write(encode({ t: "welcome", id: m.id }));
-        if (!this.apply({ type: "join", id: m.id, name: m.name, avatar: String(m.avatar || "person") })) sock.write(encode({ t: "state", s: this.state }));
+        if (!this.apply({ type: "join", id: m.id, name: m.name, avatar: typeof m.avatar === "string" && SAFE_AVATAR.test(m.avatar) ? m.avatar : "person" })) sock.write(encode({ t: "state", s: this.state }));
       } else if (m.t === "react" && peer.id) {
         const now = Date.now();
         if (now - peer.lastReact < 400) return; // no emoji floods
@@ -191,6 +198,14 @@ export class HostSession extends Base implements Session {
     this.fireReaction(teamId, emoji);
   }
   react(emoji: string) { this.spread(this.myId, emoji); }
+  /** App came back to the foreground: forget the time spent asleep and resync every phone. */
+  wake() {
+    if (this.status === "closed") return;
+    this.lastTick = Date.now();
+    for (const peer of this.peers.values()) peer.seen = Date.now();
+    this.broadcast();
+    this.emit();
+  }
   bid(amount: number) { this.apply({ type: "bid", id: this.myId, amount }); }
   pass() { this.apply({ type: "pass", id: this.myId }); }
   setConfig(c: Config) { this.apply({ type: "config", config: c }); }
@@ -264,6 +279,7 @@ export class ClientSession extends Base implements Session {
     if (!m || this.status === "closed") return;
     this.lastSeen = Date.now();
     if (m.t === "state") {
+      if (!looksLikeState(m.s)) return; // never render something malformed from the network
       this.state = m.s;
       this.status = "live";
       this.emit();
@@ -307,6 +323,12 @@ export class ClientSession extends Base implements Session {
     this.sock.write(encode({ t: "ping" }));
   }
 
+  /** App came back to the foreground: check the line straight away instead of waiting for the next heartbeat. */
+  wake() {
+    if (this.status === "closed") return;
+    if (!this.sock) { clearTimeout(this.retry); this.open(); return; }
+    this.sock.write(encode({ t: "ping" }));
+  }
   private send(a: Action) { this.sock?.write(encode({ t: "act", a })); }
   bid(amount: number) { this.send({ type: "bid", id: this.myId, amount }); }
   pass() { this.send({ type: "pass", id: this.myId }); }
@@ -331,6 +353,24 @@ export class ClientSession extends Base implements Session {
   leave() { this.close(); }
 }
 
+/** Cheap structural check on a state received from a host, so a broken or hostile host cannot crash the app. */
+export function looksLikeState(s: any): s is State {
+  if (!s || typeof s !== "object" || typeof s.arena !== "string" || typeof s.hostId !== "string") return false;
+  if (!["lobby", "auction", "done"].includes(s.phase) || !s.config || typeof s.config.timer !== "number") return false;
+  if (!Array.isArray(s.teams) || s.teams.length > MAX_TEAMS || !Array.isArray(s.queue) || !Array.isArray(s.results) || !Array.isArray(s.unsold)) return false;
+  const known = (pid: any) => Number.isInteger(pid) && pid >= 1 && pid <= PLAYERS.length;
+  for (const t of s.teams) {
+    if (!t || typeof t.id !== "string" || typeof t.name !== "string" || typeof t.color !== "string" || typeof t.avatar !== "string" || typeof t.purse !== "number" || !Array.isArray(t.squad)) return false;
+    if (!t.squad.every((e: any) => e && known(e.pid) && typeof e.price === "number")) return false;
+  }
+  if (!s.queue.every(known) || !s.unsold.every(known) || !s.results.every((r: any) => r && known(r.pid))) return false;
+  if (s.lot !== null) {
+    const l = s.lot;
+    if (!l || !known(l.pid) || typeof l.bid !== "number" || typeof l.remainMs !== "number" || !Array.isArray(l.passed) || !Array.isArray(l.history) || !["open", "sold", "unsold"].includes(l.status)) return false;
+  }
+  return true;
+}
+
 /** Ask one address whether a Skelp! arena is being hosted there. */
 export async function probe(transport: Transport, host: string, port = PORT, timeoutMs = 900): Promise<ArenaInfo | null> {
   let sock: Sock;
@@ -351,7 +391,7 @@ export async function probe(transport: Transport, host: string, port = PORT, tim
     const t = setTimeout(() => done(null), timeoutMs + 600);
     sock.onLine((line) => {
       const m = decode<ServerMsg>(line);
-      if (m?.t === "info" && m.v === PROTOCOL) done({ host, arena: m.arena, teams: m.teams, max: m.max, phase: m.phase, mode: m.mode });
+      if (m?.t === "info" && m.v === PROTOCOL && typeof m.arena === "string") done({ host, arena: m.arena.slice(0, 40), teams: Number(m.teams) || 0, max: Number(m.max) || MAX_TEAMS, phase: m.phase, mode: String(m.mode).slice(0, 12) });
     });
     sock.onClose(() => done(null));
     sock.write(encode({ t: "probe" }));

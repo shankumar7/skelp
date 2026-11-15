@@ -5,7 +5,7 @@
 import net from "net";
 import { PRESETS, State } from "../game/engine";
 import { getPlayer } from "../game/players";
-import { ClientSession, HostSession, probe, resolveCode, scan, candidates, Session } from "../game/net/session";
+import { ClientSession, HostSession, looksLikeState, probe, resolveCode, scan, candidates, Session } from "../game/net/session";
 import { decode, encode } from "../game/net/protocol";
 import { makeTransport } from "../game/net/transport";
 
@@ -199,4 +199,63 @@ test("emoji reactions reach every phone, junk and floods are dropped", async () 
   a.react("💸");
   await until(() => seen.host.length === 3, "third reaction");
   expect(seen.b).toHaveLength(2); // unsubscribed
+});
+
+test("host sanitises what strangers send", async () => {
+  const host = await hostArena();
+  const raw = await transport.connect("127.0.0.1", host.port);
+  raw.write(encode({ t: "hello", v: 1, id: "x".repeat(200), name: "Long id", avatar: "x" }));
+  const evil = join(host, "evil", "Mallory");
+  (evil as any).me.avatar = "<img src=x onerror=alert(1)>";
+  await until(() => st(host).teams.length === 2, "join");
+  await sleep(100);
+  expect(st(host).teams).toHaveLength(2); // the 200-char id was refused
+  // avatar is set at construction, so join a second client with a hostile one
+  const c = new ClientSession(transport, "127.0.0.1", { id: "evil2", name: "N".repeat(50), avatar: "../../etc/passwd" }, host.port);
+  open.push(c);
+  await until(() => st(host).teams.length === 3, "second join");
+  const t = st(host).teams[2];
+  expect(t.avatar).toBe("person");
+  expect(t.name.length).toBeLessThanOrEqual(16);
+  raw.close();
+});
+
+test("an oversized message without a newline gets the socket dropped", async () => {
+  const host = await hostArena();
+  const raw = await transport.connect("127.0.0.1", host.port);
+  let closed = false;
+  raw.onClose(() => { closed = true; });
+  const chunk = "a".repeat(60_000);
+  for (let i = 0; i < 12 && !closed; i++) { raw.write(chunk.slice(0, -1)); await sleep(20); } // write() appends a newline; send raw-ish junk
+  // lines are short enough to pass, so now send one giant line through the underlying socket
+  const big = await new Promise<boolean>((resolve) => {
+    const s = net.createConnection({ host: "127.0.0.1", port: host.port }, () => { s.write("b".repeat(700_000)); });
+    s.on("close", () => resolve(true));
+    s.on("error", () => resolve(true));
+    setTimeout(() => resolve(false), 4000);
+  });
+  expect(big).toBe(true);
+  raw.close();
+});
+
+test("clients ignore malformed states from a broken host", () => {
+  const good = { arena: "A", hostId: "h", phase: "lobby", config: { timer: 10 }, teams: [], queue: [1, 2], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false };
+  expect(looksLikeState(good)).toBe(true);
+  expect(looksLikeState(null)).toBe(false);
+  expect(looksLikeState({ ...good, teams: "nope" })).toBe(false);
+  expect(looksLikeState({ ...good, queue: [99999] })).toBe(false);
+  expect(looksLikeState({ ...good, lot: { pid: 1 } })).toBe(false);
+  expect(looksLikeState({ ...good, teams: [{ id: "a", name: "x", color: "#fff", avatar: "x", purse: 1, squad: [{ pid: -4, price: 1 }] }] })).toBe(false);
+});
+
+test("waking from the background reconnects a client immediately and resyncs the host", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => a.getStatus() === "live", "join");
+  (a as any).sock.close();
+  await until(() => a.getStatus() === "reconnecting", "drop");
+  a.wake();
+  await until(() => a.getStatus() === "live", "instant reconnect", 1200);
+  host.wake();
+  expect(st(host).teams[1].connected).toBe(true);
 });
