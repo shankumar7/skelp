@@ -14,6 +14,16 @@ const MESSAGES: Record<string, string> = {
   "auth/operation-not-allowed": "Online accounts are not switched on yet. Continue as a guest for now.",
   "auth/configuration-not-found": "Online accounts are not switched on yet. Continue as a guest for now.",
   "auth/missing-email": "Enter your email address first.",
+  "auth/account-exists-with-different-credential": "This email already has a Skelp! account with a password. Sign in with your email and password.",
+  // Google sign-in (codes from @react-native-google-signin)
+  "10": "Google sign-in is not set up for this version of the app yet. Use email and password for now.",
+  DEVELOPER_ERROR: "Google sign-in is not set up for this version of the app yet. Use email and password for now.",
+  "7": "No internet connection. Connect to the internet to sign in, or continue as a guest.",
+  NETWORK_ERROR: "No internet connection. Connect to the internet to sign in, or continue as a guest.",
+  PLAY_SERVICES_NOT_AVAILABLE: "Google sign-in needs Google Play services, which this phone does not have. Use email and password instead.",
+  IN_PROGRESS: "Google sign-in is already open.",
+  "google/cancelled": "Cancelled.",
+  "google/no-id-token": "Google did not return an account. Please try again.",
 };
 
 export function friendlyError(e: unknown): string {

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
@@ -24,7 +24,7 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_WIFI_STATE"
       ],
-      "versionCode": 5,
+      "versionCode": 6,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -89,7 +89,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin"
     ],
     "updates": {
       "enabled": false,
