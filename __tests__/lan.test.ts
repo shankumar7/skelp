@@ -1,0 +1,178 @@
+/**
+ * End-to-end LAN test: a host and several clients talking over real TCP sockets
+ * (Node's `net` has the same API as react-native-tcp-socket, and goes through the same wrapper).
+ */
+import net from "net";
+import { PRESETS, State } from "../game/engine";
+import { getPlayer } from "../game/players";
+import { ClientSession, HostSession, probe, resolveCode, scan, candidates, Session } from "../game/net/session";
+import { decode, encode } from "../game/net/protocol";
+import { makeTransport } from "../game/net/transport";
+
+const transport = makeTransport(net);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function until(cond: () => boolean, what: string, ms = 5000) {
+  const t0 = Date.now();
+  while (!cond()) {
+    if (Date.now() - t0 > ms) throw new Error("timed out waiting for " + what);
+    await sleep(20);
+  }
+}
+const st = (s: Session) => s.getState() as State;
+
+let open: Session[] = [];
+afterEach(() => { open.forEach((s) => s.leave()); open = []; });
+async function hostArena() {
+  const host = new HostSession({ id: "host", name: "Shan", avatar: "trophy" }, "SHAN'S ARENA");
+  await host.serve(transport, 0); // any free port
+  open.push(host);
+  return host;
+}
+function join(host: HostSession, id: string, name: string) {
+  const c = new ClientSession(transport, "127.0.0.1", { id, name, avatar: "flash" }, host.port);
+  open.push(c);
+  return c;
+}
+
+test("protocol encoding is ASCII-safe and round-trips", () => {
+  const line = encode({ t: "hello", v: 1, id: "a", name: "शान ₹ 😀", avatar: "x" });
+  expect(/^[\x00-\x7e]+$/.test(line)).toBe(true);
+  expect(decode<any>(line).name).toBe("शान ₹ 😀");
+  expect(decode("not json")).toBeNull();
+});
+
+test("arena codes and scan candidates", () => {
+  expect(resolveCode("#42", "192.168.43.7")).toBe("192.168.43.42");
+  expect(resolveCode("10.0.0.5", null)).toBe("10.0.0.5");
+  expect(resolveCode("42", null)).toBeNull();
+  expect(resolveCode("abc", "192.168.1.2")).toBeNull();
+  expect(resolveCode("999.1.1.1", null)).toBeNull();
+  const c = candidates("192.168.43.7");
+  expect(c[0]).toBe("192.168.43.1"); // hotspot owner first
+  expect(c).not.toContain("192.168.43.7");
+  expect(c).toHaveLength(253);
+  expect(candidates(null)).toContain("192.168.43.1");
+});
+
+test("discovery finds a hosted arena and ignores empty addresses", async () => {
+  const host = await hostArena();
+  expect(await probe(transport, "127.0.0.1", host.port)).toMatchObject({ arena: "SHAN'S ARENA", teams: 1, phase: "lobby" });
+  const found: string[] = [];
+  await scan(transport, null, (a) => found.push(a.host), host.port, ["127.0.0.1"]).done;
+  expect(found).toEqual(["127.0.0.1"]);
+  const none: string[] = [];
+  await scan(transport, null, (a) => none.push(a.host), 1, ["127.0.0.1", "127.0.0.2"]).done; // nothing listens on port 1
+  expect(none).toEqual([]);
+  host.leave();
+  await sleep(50);
+  expect(await probe(transport, "127.0.0.1", host.port)).toBeNull();
+});
+
+test("three phones: join, start, bid against each other, everyone sees the same state", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  const b = join(host, "phone-b", "Anika");
+  await until(() => st(host).teams.length === 3 && a.getStatus() === "live" && b.getStatus() === "live", "clients to join");
+  expect(st(a).teams.map((t) => t.name)).toEqual(["Shan", "Aryan", "Anika"]);
+
+  host.setConfig(PRESETS.QUICK);
+  await until(() => st(b)?.config.mode === "QUICK", "config sync");
+  a.start(); // clients cannot start the auction
+  await sleep(100);
+  expect(st(host).phase).toBe("lobby");
+  host.start();
+  await until(() => st(a).phase === "auction" && st(b).phase === "auction", "auction start");
+
+  const lot = st(host).lot!;
+  const base = getPlayer(lot.pid).base;
+  a.bid(base);
+  await until(() => st(b).lot!.bidder === "phone-a", "bid from A to reach B");
+  b.bid(base + 5 > base ? st(b).lot!.bid + 50 : 0); // jump bid
+  await until(() => st(a).lot!.bidder === "phone-b", "bid from B to reach A");
+  expect(st(host).lot!.bid).toBe(base + 50);
+  // A and the host pass -> B wins without waiting for the clock
+  a.pass();
+  host.pass();
+  await until(() => st(a).lot!.status === "sold", "hammer");
+  await until(() => st(b).teams[2].squad.length === 1, "squad sync");
+  expect(st(b).teams[2]).toMatchObject({ purse: PRESETS.QUICK.purse - base - 50, squad: [{ pid: lot.pid, price: base + 50 }] });
+  expect(st(a)).toEqual(st(host));
+});
+
+test("clients cannot act for other teams or send host commands", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => a.getStatus() === "live", "join");
+  host.start();
+  await until(() => st(a).phase === "auction", "start");
+  const raw = await transport.connect("127.0.0.1", host.port);
+  raw.write(encode({ t: "act", a: { type: "bid", id: "host", amount: 5000 } })); // not logged in
+  raw.write(encode({ t: "hello", v: 1, id: "host", name: "Fake", avatar: "x" })); // impersonating the host
+  raw.write("garbage that is not json");
+  (a as any).send({ type: "bid", id: "host", amount: getPlayer(st(a).lot!.pid).base }); // spoofed id
+  (a as any).send({ type: "end" });
+  await until(() => st(host).lot!.bidder !== null, "bid to land");
+  expect(st(host).lot!.bidder).toBe("phone-a"); // counted as A's own bid
+  expect(st(host).phase).toBe("auction");
+  raw.close();
+});
+
+test("late joiners and full arenas are turned away with a reason", async () => {
+  const host = await hostArena();
+  host.addBot();
+  host.start();
+  const late = join(host, "late", "Late") as ClientSession;
+  await until(() => late.getStatus() === "closed", "rejection");
+  expect(late.error).toMatch(/already started/i);
+});
+
+test("a dropped phone is marked offline and can rejoin with its squad", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => a.getStatus() === "live", "join");
+  host.addBot();
+  host.start();
+  await until(() => st(a)?.phase === "auction", "start");
+  a.leave();
+  await until(() => st(host).teams[1].connected === false, "host to notice the drop");
+  const again = join(host, "phone-a", "Aryan");
+  await until(() => again.getStatus() === "live" && st(host).teams[1].connected, "rejoin");
+  expect(st(again).phase).toBe("auction");
+  expect(st(host).teams).toHaveLength(3);
+});
+
+test("client auto-reconnects when the connection breaks", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => a.getStatus() === "live", "join");
+  (a as any).sock.close(); // simulate a Wi-Fi blip
+  await until(() => a.getStatus() === "reconnecting", "client to notice");
+  await until(() => a.getStatus() === "live", "reconnect", 8000);
+  expect(st(host).teams[1].connected).toBe(true);
+});
+
+test("host closing the arena tells everyone", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan") as ClientSession;
+  await until(() => a.getStatus() === "live", "join");
+  host.leave();
+  await until(() => a.getStatus() === "closed", "client close");
+  expect(a.error).toMatch(/host closed/i);
+});
+
+test("connecting to nothing fails with a helpful message", async () => {
+  const c = new ClientSession(transport, "127.0.0.1", { id: "x", name: "X", avatar: "x" }, 1);
+  open.push(c);
+  await until(() => c.getStatus() === "closed", "failure", 9000);
+  expect(c.error).toMatch(/same Wi-Fi/);
+}, 12000);
+
+test("solo host with bots plays by itself in real time", async () => {
+  const host = new HostSession({ id: "me", name: "Solo", avatar: "x" }, "PRACTICE");
+  open.push(host);
+  host.addBot(); host.addBot(); host.addBot();
+  host.setConfig({ ...PRESETS.QUICK, timer: 1 });
+  host.start();
+  await until(() => st(host).results.length >= 2, "bots to finish a couple of lots", 20000);
+  expect(st(host).teams.filter((t) => t.isBot)).toHaveLength(3);
+}, 25000);
