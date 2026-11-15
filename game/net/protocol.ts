@@ -7,6 +7,7 @@ export type ClientMsg =
   | { t: "probe" }
   | { t: "hello"; v: number; id: string; name: string; avatar: string }
   | { t: "act"; a: Action }
+  | { t: "react"; e: string }
   | { t: "ping" };
 
 export type ServerMsg =
@@ -14,7 +15,11 @@ export type ServerMsg =
   | { t: "welcome"; id: string }
   | { t: "state"; s: State }
   | { t: "reject"; reason: string }
+  | { t: "react"; id: string; e: string }
   | { t: "pong" };
+
+/** Quick reactions players can throw into the room during an auction. */
+export const REACTIONS = ["🔥", "👏", "😂", "😱", "💸", "🤝"];
 
 export interface ArenaInfo { host: string; arena: string; teams: number; max: number; phase: State["phase"]; mode: string }
 

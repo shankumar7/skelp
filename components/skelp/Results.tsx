@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, StyleSheet } from "react-native";
+import { ScrollView, Share, Text, View, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { spent, squadPower, standings, State } from "@/game/engine";
@@ -13,13 +13,23 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
   const champ = table[0];
   const sales = state.teams.flatMap((t) => t.squad.map((e) => ({ ...e, team: t })));
   const top = sales.slice().sort((a, b) => b.price - a.price)[0];
+  // steal of the auction: the most rating points per crore among quality players
+  const steal = sales.filter((x) => getPlayer(x.pid).rating >= 80).sort((a, b) => getPlayer(b.pid).rating / b.price - getPlayer(a.pid).rating / a.price)[0];
+  const share = () => {
+    const lines = [`🏏 SKELP! — ${state.arena.toUpperCase()}`, "", ...table.map((t, i) => `${i + 1}. ${t.name} — power ${squadPower(t)}, ${t.squad.length} players, ${formatMoney(spent(t))} spent`)];
+    if (top) lines.push("", `💸 Costliest: ${getPlayer(top.pid).name} (${formatMoney(top.price)}, ${top.team.name})`);
+    if (steal) lines.push(`🤝 Steal: ${getPlayer(steal.pid).name} (${formatMoney(steal.price)}, ${steal.team.name})`);
+    const mine = state.teams.find((t) => t.id === myId);
+    if (mine && mine.squad.length) lines.push("", `My squad: ${mine.squad.map((e) => getPlayer(e.pid).name).join(", ")}`);
+    Share.share({ message: lines.join("\n") }).catch(() => {});
+  };
   return (
-    <View style={[s.screen, { backgroundColor: "#F1F5F9" }]}>
+    <View style={[s.screen, { backgroundColor: "#F1EADF" }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         <Text style={[s.avatarTitle, { textAlign: "center" }]}>AUCTION COMPLETE</Text>
         <Text style={s.avatarSub}>{state.arena.toUpperCase()} • {sales.length} PLAYERS SOLD</Text>
 
-        <LinearGradient colors={["#2563EB", "#1E40AF"]} style={[s.arenaPlayerCard, { padding: 24, marginTop: 24 }]}>
+        <LinearGradient colors={["#5B5FEF", "#3F42C8"]} style={[s.arenaPlayerCard, { padding: 24, marginTop: 24 }]}>
           <View style={s.arenaPlayerImagePlaceholder}><Ionicons name="trophy" size={150} color="rgba(255,255,255,0.25)" /></View>
           <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>STRONGEST SQUAD</Text></View>
           <Text style={[s.arenaPlayerName, { fontSize: 36 }]} numberOfLines={1} adjustsFontSizeToFit>{champ ? champ.name.toUpperCase() : "—"}{champ?.id === myId ? " (YOU)" : ""}</Text>
@@ -31,7 +41,7 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
           {table.map((t, i) => (
             <View key={t.id} style={[s.dashLeaderItem, i === table.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={[s.row, { flex: 1 }]}>
-                <Text style={[s.dashRank, i === 0 && { color: "#EAB308" }]}>{i + 1}</Text>
+                <Text style={[s.dashRank, i === 0 && { color: "#F5A623" }]}>{i + 1}</Text>
                 <View style={[s.dashLeaderAvatar, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={16} color={t.color} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.dashLeaderName} numberOfLines={1}>{t.name.toUpperCase()}{t.id === myId ? " (YOU)" : ""}</Text>
@@ -47,19 +57,28 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
         {top && (
           <View style={[s.dashStatsRow, { marginTop: 20 }]}>
             <View style={s.dashStatBox}><Text style={[s.dashStatVal, { fontSize: 18 }]}>{formatMoney(top.price)}</Text><Text style={s.dashStatLab} numberOfLines={2}>COSTLIEST: {getPlayer(top.pid).name.toUpperCase()}</Text></View>
-            <View style={s.dashStatBox}><Text style={[s.dashStatVal, { fontSize: 18 }]}>{state.unsold.length}</Text><Text style={s.dashStatLab}>WENT UNSOLD</Text></View>
+            {steal ? (
+              <View style={s.dashStatBox}><Text style={[s.dashStatVal, { fontSize: 18, color: "#2EC4A0" }]}>{formatMoney(steal.price)}</Text><Text style={s.dashStatLab} numberOfLines={2}>STEAL: {getPlayer(steal.pid).name.toUpperCase()}</Text></View>
+            ) : (
+              <View style={s.dashStatBox}><Text style={[s.dashStatVal, { fontSize: 18 }]}>{state.unsold.length}</Text><Text style={s.dashStatLab}>WENT UNSOLD</Text></View>
+            )}
           </View>
         )}
 
         <View style={s.dashSectionHeader}><Text style={s.dashSectionTitle}>SQUADS</Text></View>
         <Squads state={state} myId={myId} />
 
-        <AnimatedPressable style={[s.premiumSubmitBtn, { marginTop: 24 }]} onPress={onExit}><Text style={s.premiumSubmitBtnText}>BACK TO DASHBOARD</Text></AnimatedPressable>
+        <Pressable style={[s.dashCreateBtn, { marginTop: 20 }]} onPress={share} accessibilityLabel="Share results">
+          <View style={[s.dashCreateIconBox, { backgroundColor: "#2EC4A0", boxShadow: "inset 0px -5px 8px rgba(10, 110, 85, 0.35), inset 0px 5px 8px rgba(255, 255, 255, 0.45)" }]}><Ionicons name="share-social" size={20} color="#FFF" /></View>
+          <Text style={s.dashCreateText}>SHARE THE RESULTS</Text>
+        </Pressable>
+
+        <AnimatedPressable style={[s.premiumSubmitBtn, { marginTop: 16 }]} onPress={onExit}><Text style={s.premiumSubmitBtnText}>BACK TO DASHBOARD</Text></AnimatedPressable>
       </ScrollView>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  note: { fontFamily: "Inter_800ExtraBold", fontSize: 8, color: "#94A3B8", letterSpacing: 1, textAlign: "center", marginTop: 10 },
+  note: { fontFamily: "Inter_800ExtraBold", fontSize: 8, color: "#A39DB5", letterSpacing: 1, textAlign: "center", marginTop: 10 },
 });
