@@ -31,7 +31,7 @@ or connected to that phone's **mobile hotspot** — joins it directly, phone to 
 - **Local multiplayer with no internet** — one phone is the server, up to 10 teams join over Wi-Fi or hotspot.
 - **Automatic discovery** — tap *Find nearby arenas* and the app finds the host for you (or type the arena code).
 - **Real auction rules** — base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, marquee set first, and an accelerated round for unsold players.
-- **137 players** with role, country, base price and rating — 75 of them with a freely-licensed photo, the rest with an initials badge.
+- **137 players** with role, country, base price and rating — 85 of them with a freely-licensed photo, the rest with an initials badge.
 - **Bots** — practise solo against AI bidders, or add bots to fill empty seats in a friends' arena.
 - **Drop-proof** — if a phone loses Wi-Fi it reconnects on its own and gets its team back.
 - **Everything stays on the phone** — profile, stats and auction history are stored locally. No accounts, no servers, no ads.

@@ -45,9 +45,24 @@
 "license": "CC BY-SA 4.0"
 },
 {
+"name": "David Miller",
+"artist": "NAPARAZZI",
+"license": "CC BY-SA 2.0"
+},
+{
+"name": "David Warner",
+"artist": "NAPARAZZI",
+"license": "CC BY-SA 2.0"
+},
+{
 "name": "Deepak Chahar",
 "artist": "G. D. GOENKA SCHOOL, AGRA",
 "license": "CC BY 3.0"
+},
+{
+"name": "Faf du Plessis",
+"artist": "Dave Morton",
+"license": "Public domain"
 },
 {
 "name": "Fazalhaq Farooqi",
@@ -85,9 +100,19 @@
 "license": "CC BY-SA 3.0"
 },
 {
+"name": "Jake Fraser-McGurk",
+"artist": "DustyNail",
+"license": "CC BY-SA 4.0"
+},
+{
 "name": "Jasprit Bumrah",
 "artist": "Prime Minister's Office",
 "license": "GODL-India"
+},
+{
+"name": "Jofra Archer",
+"artist": "BBC News اردو",
+"license": "CC BY 3.0"
 },
 {
 "name": "Jonny Bairstow",
@@ -170,6 +195,11 @@
 "license": "CC BY 2.0"
 },
 {
+"name": "Mayank Agarwal",
+"artist": "Dave Morton",
+"license": "Public domain"
+},
+{
 "name": "Mitchell Marsh",
 "artist": "www.davidmolloyphotography.com",
 "license": "CC BY 2.0"
@@ -210,6 +240,11 @@
 "license": "CC0"
 },
 {
+"name": "Pat Cummins",
+"artist": "Kolkata Knight Riders - Official",
+"license": "CC BY 3.0"
+},
+{
 "name": "Prithvi Shaw",
 "artist": "CRICKETNEXT",
 "license": "CC BY 3.0"
@@ -227,6 +262,11 @@
 {
 "name": "Rashid Khan",
 "artist": "Afghanistan Cricket Board",
+"license": "CC BY 3.0"
+},
+{
+"name": "Ravichandran Ashwin",
+"artist": "Indian yogi and author Sadhguru, on Youtube",
 "license": "CC BY 3.0"
 },
 {
@@ -263,6 +303,11 @@
 "name": "Sai Kishore",
 "artist": "Dee03",
 "license": "CC BY-SA 4.0"
+},
+{
+"name": "Sam Curran",
+"artist": "Number 10",
+"license": "CC BY 2.0"
 },
 {
 "name": "Sanju Samson",
@@ -318,6 +363,11 @@
 "name": "Travis Head",
 "artist": "Calistemon",
 "license": "CC BY-SA 4.0"
+},
+{
+"name": "Trent Boult",
+"artist": "www.davidmolloyphotography.com from Sydney, Australia",
+"license": "CC BY 2.0"
 },
 {
 "name": "Tushar Deshpande",
