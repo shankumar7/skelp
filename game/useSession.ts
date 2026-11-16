@@ -28,6 +28,6 @@ export function useCountdown({ state, status, stamp }: Snapshot): { seconds: num
   const running = !state.paused && status === "live";
   const elapsed = running ? Math.max(0, now - stamp) : 0;
   const ms = Math.max(0, lot.remainMs - elapsed);
-  const total = lot.status === "open" ? state.config.timer * 1000 : 3000;
+  const total = lot.status === "open" ? state.config.timer * 1000 : lot.status === "rtm" ? 8000 : 3000;
   return { seconds: Math.ceil(ms / 1000), fraction: Math.min(1, ms / total) };
 }

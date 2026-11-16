@@ -22,11 +22,17 @@ export interface Profile {
 }
 export interface HistoryItem { date: number; arena: string; rank: number; teams: number; power: number; spent: number; players: number }
 export interface Stats { auctions: number; wins: number; spent: number; history: HistoryItem[] }
-interface Saved { current: Profile | null; stats: Stats; sound: boolean }
+/** A finished auction kept on this phone in full, so it can be browsed later. */
+export interface ArchiveTeam { id: string; name: string; owner: string; color: string; avatar: string; isBot: boolean; purse: number; power: number; squad: { pid: number; price: number; kept?: boolean; rtm?: boolean }[] }
+export interface ArchivePlayer { id: number; name: string; role: string; country: string; overseas: boolean; base: number; rating: number }
+export interface Archive { date: number; arena: string; mode: string; myId: string; sold: number; unsold: number; teams: ArchiveTeam[]; custom: ArchivePlayer[] }
+export type ThemeChoice = "light" | "dark";
+interface Saved { current: Profile | null; stats: Stats; sound: boolean; theme?: ThemeChoice; archive: Archive[]; skippedUpdate?: string }
+export const MAX_ARCHIVE = 20;
 
 const KEY = "skelp.v1";
 const EMPTY_STATS: Stats = { auctions: 0, wins: 0, spent: 0, history: [] };
-const EMPTY: Saved = { current: null, stats: EMPTY_STATS, sound: true };
+const EMPTY: Saved = { current: null, stats: EMPTY_STATS, sound: true, archive: [] };
 let cache: Saved | null = null;
 
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -38,7 +44,7 @@ export async function load(): Promise<Saved> {
     const parsed = raw ? JSON.parse(raw) : {};
     // profiles from before online accounts (1.0 – 1.2) were local-only: keep their stats, sign them out
     const current: Profile | null = parsed.current && "uid" in parsed.current ? parsed.current : null;
-    cache = { ...EMPTY, ...parsed, current };
+    cache = { ...EMPTY, ...parsed, current, archive: Array.isArray(parsed.archive) ? parsed.archive : [] };
   } catch {
     cache = { ...EMPTY };
   }
@@ -80,7 +86,31 @@ export async function updateProfile(changes: Partial<Profile>): Promise<Profile 
   if (!d.current) return null;
   const current = { ...d.current, ...changes };
   await save({ ...d, current });
+  // a new name or avatar also goes to the cloud copy
+  if ("name" in changes || "avatar" in changes) backup(current, d.stats);
   return current;
+}
+export async function saveTheme(theme: ThemeChoice) {
+  const d = await load();
+  await save({ ...d, theme });
+}
+/** Remember that the player does not want to be asked about this version again. */
+export async function skipUpdate(version: string) {
+  const d = await load();
+  await save({ ...d, skippedUpdate: version });
+}
+/** Keep the full result of an auction on this phone (newest first). */
+export async function saveArchive(item: Archive): Promise<Archive[]> {
+  const d = await load();
+  const archive = [item, ...d.archive.filter((a) => a.date !== item.date)].slice(0, MAX_ARCHIVE);
+  await save({ ...d, archive });
+  return archive;
+}
+export async function deleteArchive(date: number): Promise<Archive[]> {
+  const d = await load();
+  const archive = d.archive.filter((a) => a.date !== date);
+  await save({ ...d, archive });
+  return archive;
 }
 
 export async function signInGuest(name: string, avatar: string, avatarIdx: number): Promise<Profile> {

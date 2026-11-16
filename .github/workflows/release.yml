@@ -1,7 +1,12 @@
 name: Publish release
 
-# Publishes a GitHub release with the APK from release/skelp.apk whenever the
-# app version in app.json changes on main (or when run by hand).
+# Publishes a GitHub release whenever the app version in app.json changes on main (or when run by hand).
+#
+# If the signing secrets are set (Settings -> Secrets and variables -> Actions):
+#   SKELP_KEYSTORE_BASE64     the release keystore, base64-encoded
+#   SKELP_KEYSTORE_PASSWORD   its password
+# the APK is built from source here, signed with the release key and attached to the release.
+# Without them - or if that build fails - the APK committed at release/skelp.apk is published instead.
 on:
   push:
     branches: [main]
@@ -11,11 +16,64 @@ on:
 permissions:
   contents: write
 
+# every Skelp! release must carry this signing certificate, or phones will refuse to update
+env:
+  RELEASE_CERT_SHA256: 6fd9de15994d1a44c3c3f2a4d2b8d0127c0895e47aa533362c3e887cffe8a4ab
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check for the signing key
+        id: key
+        env:
+          KEYSTORE: ${{ secrets.SKELP_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "::notice::No signing secrets - publishing the committed APK."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build and sign the APK
+        id: build
+        if: steps.key.outputs.present == 'true'
+        continue-on-error: true
+        env:
+          KEYSTORE: ${{ secrets.SKELP_KEYSTORE_BASE64 }}
+          SKELP_KEYSTORE_PASSWORD: ${{ secrets.SKELP_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/skelp-release.jks"
+          SKELP_KEYSTORE="$RUNNER_TEMP/skelp-release.jks" bash scripts/build-apk.sh
+          rm -f "$RUNNER_TEMP/skelp-release.jks"
+
+      - name: Fall back to the committed APK if the build failed
+        if: steps.key.outputs.present == 'true' && steps.build.outcome != 'success'
+        run: |
+          echo "::warning::Building from source failed - publishing the committed APK instead."
+          git checkout -- release/skelp.apk
+
+      - name: Check the APK signature
+        run: |
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          cert=$("$tools/apksigner" verify --print-certs release/skelp.apk | grep -i "SHA-256" | head -1 | awk '{print $NF}')
+          echo "APK certificate: $cert"
+          if [ "$cert" != "$RELEASE_CERT_SHA256" ]; then echo "::error::release/skelp.apk is not signed with the Skelp! release key."; exit 1; fi
+
       - name: Create the release if this version has none yet
         env:
           GH_TOKEN: ${{ github.token }}

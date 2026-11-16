@@ -1,3 +1,4 @@
+import { T, themed } from "@/components/skelp/theme";
 import { BackHandler, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useRef } from "react";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -17,7 +18,7 @@ export function QrScanner({ insets, onClose, onScanned }: { insets: any; onClose
 
   const granted = !!permission?.granted && Platform.OS !== "web";
   return (
-    <View style={[s.screen, { backgroundColor: granted ? "#000" : "#FAF5EC" }]}>
+    <View style={[s.screen, { backgroundColor: granted ? "#000" : T.bgAlt }]}>
       {granted ? (
         <CameraView
           style={StyleSheet.absoluteFill}
@@ -36,7 +37,7 @@ export function QrScanner({ insets, onClose, onScanned }: { insets: any; onClose
       )}
 
       <View style={[st.top, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={onClose} style={s.clayBack} accessibilityLabel="Close scanner"><Ionicons name="close" size={24} color="#2A2545" /></Pressable>
+        <Pressable onPress={onClose} style={s.clayBack} accessibilityLabel="Close scanner"><Ionicons name="close" size={24} color={T.ink} /></Pressable>
       </View>
 
       {granted ? (
@@ -64,10 +65,10 @@ export function QrScanner({ insets, onClose, onScanned }: { insets: any; onClose
   );
 }
 
-const st = StyleSheet.create({
+const st = themed(() => StyleSheet.create({
   top: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 20, zIndex: 5 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  frame: { width: 240, height: 240, borderRadius: 36, borderWidth: 5, borderColor: "#FFF", backgroundColor: "rgba(255,255,255,0.06)" },
-  hintPill: { marginTop: 24, backgroundColor: "#5B5FEF", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18 },
-  hintText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, color: "#FFF", letterSpacing: 2 },
-});
+  frame: { width: 240, height: 240, borderRadius: 36, borderWidth: 5, borderColor: T.cardEdge, backgroundColor: "rgba(255,255,255,0.06)" },
+  hintPill: { marginTop: 24, backgroundColor: T.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18 },
+  hintText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, color: T.white, letterSpacing: 2 },
+}));
