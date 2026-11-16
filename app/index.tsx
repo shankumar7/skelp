@@ -45,8 +45,10 @@ import { Dashboard } from "@/components/skelp/Dashboard";
 import { PlayerPool } from "@/components/skelp/PlayerPool";
 import { Session } from "@/game/net/session";
 import { setSoundOn } from "@/game/sound";
-import { Archive, load, newId, Profile, recordAuction, saveArchive, saveTheme, setSignedIn, signInGuest, signOut, Stats, updateProfile } from "@/game/storage";
+import { Archive, LastArena, load, newId, Profile, recordAuction, saveArchive, saveLastArena, saveTheme, setSignedIn, signInGuest, signOut, Stats, updateProfile } from "@/game/storage";
 import * as cloud from "@/game/cloud";
+import { initStars } from "@/game/stars";
+import { ClientSession } from "@/game/net/session";
 
 function BootSplash({ insets, ready, onDone }: any) {
   const logoOp = useRef(new Animated.Value(0)).current;
@@ -228,11 +230,23 @@ function Home({ onTheme }: { onTheme: () => void }) {
   const [bootDone, setBootDone] = useState(booted);
   const [archive, setArchive] = useState<Archive[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  /** the arena this phone joined and has not properly left: offered again if the app was closed mid-auction */
+  const [lastArena, setLastArena] = useState<LastArena | null>(null);
+  const enter = (next: Session) => {
+    if (next instanceof ClientSession) {
+      const a = next.address;
+      const last: LastArena = { arena: a.online ? `Online arena ${a.online}` : "Wi-Fi arena", online: a.online, host: a.host, port: a.port, at: Date.now() };
+      saveLastArena(last);
+    }
+    setLastArena(null);
+    setSession(next);
+  };
+  const exit = () => { saveLastArena(null); setLastArena(null); setSession(null); };
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
   const [showPool, setShowPool] = useState(false);
 
   // the app runs from the copy on this phone; signed-in players also sync to Firebase
-  useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setArchive(d.archive); setStored(true); }); }, []);
+  useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setArchive(d.archive); initStars(d.stars); setLastArena(d.lastArena && Date.now() - d.lastArena.at < 3 * 3600 * 1000 ? d.lastArena : null); setStored(true); }); }, []);
 
   if (!fontsLoaded || !stored || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded && stored} onDone={() => { booted = true; setBootDone(true); }} />;
 
@@ -338,10 +352,10 @@ function Home({ onTheme }: { onTheme: () => void }) {
   if (isAuthenticating) return <AuthenticatingScreen onFinish={onAuthDone} name={pending?.name ?? displayName} />;
 
   if (profile) {
-    if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={() => setSession(null)} onFinished={(item, full) => { if (item) recordAuction(item).then(setStats); saveArchive(full).then(setArchive); }} />;
+    if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={exit} onFinished={(item, full) => { if (item) recordAuction(item).then(setStats); saveArchive(full).then(setArchive); }} />;
     if (showHistory) return <History archive={archive} insets={insets} onBack={() => setShowHistory(false)} onChange={setArchive} />;
     if (showPool) return <PlayerPool insets={insets} onBack={() => setShowPool(false)} />;
-    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} onAbout={() => setShowAbout(true)} onHistory={() => setShowHistory(true)} onTheme={onTheme} />;
+    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={enter} lastArena={lastArena} onForget={() => { saveLastArena(null); setLastArena(null); }} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} onAbout={() => setShowAbout(true)} onHistory={() => setShowHistory(true)} onTheme={onTheme} />;
   }
   if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setShowAbout(true); }} />;
   return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} onGoogle={signInGoogle} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setShowAbout(true); }} />;

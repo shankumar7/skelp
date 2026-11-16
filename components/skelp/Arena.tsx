@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { bidBlocker, nextBid, overseasCap, overseasCount, squadPower, State, Team } from "@/game/engine";
+import { bidBlocker, nextBid, overseasCap, overseasCount, safeMaxBid, setOf, squadPower, State, Team } from "@/game/engine";
+import { toggleStar, useStars } from "@/game/stars";
 import { formatMoney, increment } from "@/game/money";
 import { REACTIONS } from "@/game/net/protocol";
 import { Session } from "@/game/net/session";
@@ -35,6 +36,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   }, [settled, lot?.pid]);
 
   const pricePop = useRef(new Animated.Value(1)).current;
+  const stars = useStars();
 
   // --- outbid alert: you held the bid and someone just went higher ---
   const [alert, setAlert] = useState<string | null>(null);
@@ -44,7 +46,14 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
     const before = prev.current;
     prev.current = lotPid === undefined ? null : { pid: lotPid, bidder: lotBidder, status: lotStatus! };
     if (lotPid === undefined) return;
-    if (!before || before.pid !== lotPid) { play("lot", 0.7); return; }
+    if (!before || before.pid !== lotPid) {
+      play("lot", 0.7);
+      // a new player: say so if they are on the shortlist, or if a new set is starting
+      const set = setOf(state, lotPid);
+      if (stars.has(lotPid)) { setAlert("★ ON YOUR SHORTLIST!"); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }
+      else if (set && set.n === 1 && state.round === 1) setAlert(`NOW: ${set.label}`);
+      return;
+    }
     const myId = session.myId;
     // the room's soundtrack: your bid, a rival's bid, being outbid, the hammer
     if (lotStatus === "open" && before.bidder !== lotBidder) play(lotBidder === myId ? "bid" : before.bidder === myId ? "outbid" : "rival", lotBidder === myId || before.bidder === myId ? 1 : 0.6);
@@ -82,6 +91,8 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
 
   if (!lot) return <View style={[s.screen, s.center]}><Text style={s.arenaComingSoonText}>PREPARING THE NEXT PLAYER…</Text></View>;
   const myId = me?.id ?? "";
+  const set = setOf(state, lot.pid);
+  const starred = stars.has(lot.pid);
   const former = teamOf(state.former[String(lot.pid)] ?? null);
   const rtmTeam = lot.status === "rtm" ? teamOf(lot.rtmTeam ?? null) : undefined;
   const myRtm = !!me && lot.status === "rtm" && lot.rtmTeam === me.id;
@@ -132,7 +143,9 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               </View>
             </View>
             <View style={{ marginTop: 18 }}>
+              {set && <Text style={st.setLine}>{set.label} • {set.n} OF {set.of}</Text>}
               <View style={[s.row, { gap: 8, flexWrap: "wrap" }]}>
+                {starred && <View style={[s.arenaCategoryBadge, { backgroundColor: "rgba(255, 214, 107, 0.32)" }]}><Text style={[s.arenaCategoryText, { color: "#FFE9A8" }]}>★ SHORTLIST</Text></View>}
                 <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>{player.overseas ? "OVERSEAS " : ""}{ROLE_LABEL[player.role]}{player.rating >= 90 ? " • MARQUEE" : ""}</Text></View>
                 {former && <View style={[s.arenaCategoryBadge, { backgroundColor: "rgba(255, 214, 107, 0.28)" }]}><Text style={[s.arenaCategoryText, { color: "#FFE9A8" }]}>EX-{former.name.toUpperCase()}{former.rtm > 0 ? " • RTM" : ""}</Text></View>}
               </View>
@@ -147,7 +160,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
             )}
           </LinearGradient>
           {bubbles.map((b) => <Bubble key={b.key} emoji={b.emoji} who={b.who} color={b.color} x={b.x} />)}
-          {alert && <View style={[st.alert, { backgroundColor: alert.startsWith("OUTBID") ? "#FF6B6B" : "#2EC4A0" }]} accessibilityLiveRegion="polite"><Text style={st.alertText}>{alert}</Text></View>}
+          {alert && <View style={[st.alert, { backgroundColor: alert.startsWith("OUTBID") ? "#FF6B6B" : alert.startsWith("★") ? "#F59E1B" : alert.startsWith("NOW") ? T.ink : "#2EC4A0" }]} accessibilityLiveRegion="polite"><Text style={st.alertText}>{alert}</Text></View>}
         </View>
 
         <View style={s.arenaStatsRow}>
@@ -161,6 +174,21 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
             <Text style={[s.arenaStatOwner, leader && { color: leader.color }]} numberOfLines={1}>{leader ? `${leader.name.toUpperCase()}${leader.id === myId ? " (YOU)" : ""}` : lot.status === "unsold" ? "NO TAKERS" : "NO BIDS YET"}</Text>
           </View>
         </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+          {state.teams.map((t) => {
+            const leading = lot.bidder === t.id;
+            const out = lot.status === "open" && lot.passed.includes(t.id);
+            return (
+              <View key={t.id} style={[st.purseChip, leading && { borderColor: t.color, backgroundColor: t.color + "1F" }, out && { opacity: 0.45 }]} accessibilityLabel={`${t.name}: ${formatMoney(t.purse)} left, ${t.squad.length} players${leading ? ", leading" : out ? ", passed" : ""}`}>
+                <TeamBadge team={t} size={26} />
+                <View style={{ marginLeft: 8 }}>
+                  <Text style={st.purseName}>{t.name}{t.id === myId ? " • YOU" : ""}</Text>
+                  <Text style={st.purseVal}>{formatMoney(t.purse)} <Text style={st.purseSub}>• {t.squad.length}/{state.config.squadMax}{out ? " • PASS" : ""}</Text></Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
         {rtmTeam && (
           <View style={st.rtmBanner}>
             <Ionicons name="card" size={18} color={T.goldText} />
@@ -179,6 +207,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               {state.config.rtm > 0 && <><View style={s.arenaStatDivider} /><Mini l="RTM CARDS" v={String(me.rtm)} /></>}
             </View>
             <Text style={st.roles}>{(["BAT", "BOWL", "AR", "WK"] as Role[]).map((r) => `${r} ${me.squad.filter((e) => getPlayer(e.pid).role === r).length}`).join("   •   ")}</Text>
+            {me.squad.length < Math.min(state.config.squadMax, 11) && <Text style={[st.roles, { marginTop: 4, color: lot.status === "open" && min > safeMaxBid(state, me) ? T.coralText : T.muted }]}>SAFE MAX BID {formatMoney(safeMaxBid(state, me))} TO STILL FILL YOUR XI</Text>}
           </>
         )}
         </View>
@@ -290,11 +319,12 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   );
 }
 
-const LIST_FILTERS = ["ALL", "UPCOMING", "SOLD", "UNSOLD"] as const;
-/** Every player in this auction: who is on the block, who is still to come, who went where and for how much. */
+const LIST_FILTERS = ["ALL", "UPCOMING", "SOLD", "UNSOLD", "★"] as const;
+/** Every player in this auction, set by set: who is on the block, who is still to come, who went where and for how much. */
 function PlayerList({ state }: { state: State }) {
   const [filter, setFilter] = useState<(typeof LIST_FILTERS)[number]>("ALL");
   const [showAll, setShowAll] = useState(false);
+  const stars = useStars();
   const lot = state.lot;
   const done = new Map(state.results.map((r) => [r.pid, r]));
   type Row = { pid: number; kind: "now" | "next" | "sold" | "unsold"; n?: number };
@@ -302,41 +332,58 @@ function PlayerList({ state }: { state: State }) {
   const finished: Row[] = state.results.slice().reverse().map((r) => ({ pid: r.pid, kind: r.team ? "sold" : "unsold" }));
   // a lot that has just been hammered is already in the results
   const current: Row[] = lot && !done.has(lot.pid) ? [{ pid: lot.pid, kind: "now" }] : [];
-  const rows = filter === "UPCOMING" ? upcoming : filter === "SOLD" ? finished.filter((r) => r.kind === "sold") : filter === "UNSOLD" ? finished.filter((r) => r.kind === "unsold") : [...current, ...upcoming, ...finished];
+  const everyone = [...current, ...upcoming, ...finished];
+  const rows = filter === "UPCOMING" ? upcoming : filter === "SOLD" ? finished.filter((r) => r.kind === "sold") : filter === "UNSOLD" ? finished.filter((r) => r.kind === "unsold") : filter === "★" ? everyone.filter((r) => stars.has(r.pid)) : everyone;
   const shown = showAll ? rows : rows.slice(0, 30);
+  const label = (pid: number) => state.sets.find((x) => x.pids.includes(pid))?.label ?? "";
+  const grouped = filter === "ALL" || filter === "UPCOMING";
   return (
     <>
       <View style={[s.row, { gap: 8, marginBottom: 12, flexWrap: "wrap" }]}>
         {LIST_FILTERS.map((f) => {
-          const count = f === "ALL" ? current.length + upcoming.length + finished.length : f === "UPCOMING" ? upcoming.length : finished.filter((r) => r.kind === (f === "SOLD" ? "sold" : "unsold")).length;
+          const count = f === "ALL" ? everyone.length : f === "UPCOMING" ? upcoming.length : f === "★" ? everyone.filter((r) => stars.has(r.pid)).length : finished.filter((r) => r.kind === (f === "SOLD" ? "sold" : "unsold")).length;
           return (
-            <Pressable key={f} onPress={() => { setFilter(f); setShowAll(false); }} style={[st.filter, filter === f && st.filterOn]} accessibilityLabel={`Show ${f.toLowerCase()} players`} accessibilityState={{ selected: filter === f }}>
+            <Pressable key={f} onPress={() => { setFilter(f); setShowAll(false); }} style={[st.filter, filter === f && st.filterOn]} accessibilityLabel={f === "★" ? "Show my shortlist" : `Show ${f.toLowerCase()} players`} accessibilityState={{ selected: filter === f }}>
               <Text style={[st.filterText, filter === f && { color: T.white }]}>{f} {count}</Text>
             </Pressable>
           );
         })}
       </View>
-      {rows.length === 0 && <View style={s.arenaComingSoon}><Text style={s.arenaComingSoonText}>{filter === "SOLD" ? "NO PLAYER HAS BEEN SOLD YET" : filter === "UNSOLD" ? "NOBODY HAS GONE UNSOLD" : "NO MORE PLAYERS TO COME"}</Text></View>}
-      {shown.map((row) => {
+      {rows.length === 0 && <View style={s.arenaComingSoon}><Text style={[s.arenaComingSoonText, { textAlign: "center", lineHeight: 16 }]}>{filter === "SOLD" ? "NO PLAYER HAS BEEN SOLD YET" : filter === "UNSOLD" ? "NOBODY HAS GONE UNSOLD" : filter === "★" ? "TAP THE STAR NEXT TO A PLAYER TO SHORTLIST THEM.\nYOU WILL BE TOLD WHEN THEY COME UP." : "NO MORE PLAYERS TO COME"}</Text></View>}
+      {shown.map((row, i) => {
         const p = getPlayer(row.pid);
         const r = done.get(row.pid);
         const t = r?.team ? state.teams.find((x) => x.id === r.team) : undefined;
+        const on = stars.has(row.pid);
+        const setLabel = grouped && row.kind !== "sold" && row.kind !== "unsold" ? label(row.pid) : "";
+        const prev = i > 0 ? shown[i - 1] : null;
+        const header = setLabel && (!prev || prev.kind === "now" || label(prev.pid) !== setLabel) && row.kind === "next";
+        const doneHeader = grouped && (row.kind === "sold" || row.kind === "unsold") && (!prev || prev.kind === "now" || prev.kind === "next");
         return (
-          <View key={`${row.kind}-${row.pid}`} style={[s.arenaLogItem, row.kind === "now" && { borderWidth: 2, borderColor: T.primary }]}>
-            <PlayerPhoto player={p} size={38} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={st.squadName} numberOfLines={1}>{p.name}</Text>
-              <Text style={s.arenaLogTime} numberOfLines={1}>{ROLE_LABEL[p.role]} • {p.country} • RTG {p.rating} • BASE {formatMoney(p.base)}</Text>
-            </View>
-            {row.kind === "now" && <Chip text="ON THE BLOCK" color={T.primaryText} soft={T.primarySoft} />}
-            {row.kind === "next" && <Text style={s.arenaLogTime}>{row.n === 1 ? "NEXT" : `IN ${row.n}`}</Text>}
-            {row.kind === "unsold" && <Chip text="UNSOLD" color={T.coralText} soft={T.coralSoft} />}
-            {row.kind === "sold" && t && r && (
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={st.squadPrice} numberOfLines={1}>{formatMoney(r.price)}</Text>
-                <Text style={[s.arenaLogTime, { color: t.color }]} numberOfLines={1}>{r.kept ? "RETAINED BY" : r.rtm ? "RTM BY" : "SOLD TO"} {t.name.toUpperCase()}</Text>
+          <View key={`${row.kind}-${row.pid}`}>
+            {header && state.round === 1 && <Text style={st.setHeader}>{setLabel}</Text>}
+            {doneHeader && <Text style={st.setHeader}>ALREADY UNDER THE HAMMER</Text>}
+            <View style={[s.arenaLogItem, { paddingVertical: 12 }, row.kind === "now" && { borderWidth: 2, borderColor: T.primary }]}>
+              <PlayerPhoto player={p} size={38} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={st.squadName} numberOfLines={1}>{p.name}</Text>
+                <Text style={s.arenaLogTime} numberOfLines={1}>{ROLE_LABEL[p.role]} • {p.country} • RTG {p.rating} • BASE {formatMoney(p.base)}</Text>
               </View>
-            )}
+              {row.kind === "now" && <Chip text="ON THE BLOCK" color={T.primaryText} soft={T.primarySoft} />}
+              {row.kind === "next" && <Text style={s.arenaLogTime}>{row.n === 1 ? "NEXT" : `IN ${row.n}`}</Text>}
+              {row.kind === "unsold" && <Chip text="UNSOLD" color={T.coralText} soft={T.coralSoft} />}
+              {row.kind === "sold" && t && r && (
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={st.squadPrice} numberOfLines={1}>{formatMoney(r.price)}</Text>
+                  <Text style={[s.arenaLogTime, { color: t.color }]} numberOfLines={1}>{r.kept ? "RETAINED BY" : r.rtm ? "RTM BY" : "SOLD TO"} {t.name.toUpperCase()}</Text>
+                </View>
+              )}
+              {(row.kind === "now" || row.kind === "next") && (
+                <Pressable onPress={() => toggleStar(row.pid)} hitSlop={10} style={{ marginLeft: 10 }} accessibilityLabel={`${on ? "Remove" : "Add"} ${p.name} ${on ? "from" : "to"} shortlist`}>
+                  <Ionicons name={on ? "star" : "star-outline"} size={20} color={on ? T.gold : T.dim} />
+                </Pressable>
+              )}
+            </View>
           </View>
         );
       })}
@@ -436,6 +483,12 @@ function SquadCard({ team, mine, initiallyOpen }: { team: Team; mine: boolean; i
 }
 
 const st = themed(() => StyleSheet.create({
+  setLine: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#D9D6FF", letterSpacing: 1.6, marginBottom: 8 },
+  setHeader: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.primaryText, letterSpacing: 1.6, marginTop: 10, marginBottom: 8, marginLeft: 4 },
+  purseChip: { flexDirection: "row", alignItems: "center", backgroundColor: T.card, borderRadius: 16, paddingVertical: 7, paddingLeft: 8, paddingRight: 12, borderWidth: 1.5, borderColor: T.cardEdge, boxShadow: T.claySoft, marginBottom: 6 },
+  purseName: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: T.muted, letterSpacing: 0.8 },
+  purseVal: { fontFamily: "Poppins_700Bold", fontSize: 12, color: T.ink, marginTop: -1 },
+  purseSub: { fontFamily: "Inter_700Bold", fontSize: 9, color: T.muted },
   filter: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: T.card, boxShadow: T.claySoft },
   filterOn: { backgroundColor: T.primary, boxShadow: T.clayPrimary },
   filterText: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.muted, letterSpacing: 0.8 },

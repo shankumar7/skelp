@@ -240,7 +240,7 @@ test("an oversized message without a newline gets the socket dropped", async () 
 });
 
 test("clients ignore malformed states from a broken host", () => {
-  const good = { arena: "A", hostId: "h", phase: "lobby", config: { timer: 10 }, teams: [], queue: [1, 2], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false, custom: [], former: {}, offers: {}, picks: {}, retainMs: 0 };
+  const good = { arena: "A", hostId: "h", phase: "lobby", config: { timer: 10 }, teams: [], queue: [1, 2], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false, sets: [], custom: [], former: {}, offers: {}, picks: {}, retainMs: 0 };
   expect(looksLikeState(good)).toBe(true);
   expect(looksLikeState(null)).toBe(false);
   expect(looksLikeState({ ...good, teams: "nope" })).toBe(false);

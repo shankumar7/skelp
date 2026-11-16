@@ -63,7 +63,7 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
                 <View style={st.ring} />
                 <Ionicons name="trophy" size={150} color="rgba(255,255,255,0.12)" style={st.heroIcon} />
                 <View style={st.badge}><Ionicons name="trophy" size={11} color="#FFE9A8" /><Text style={st.badgeText}>STRONGEST SQUAD</Text></View>
-                <Text style={st.champ} numberOfLines={1} adjustsFontSizeToFit>{champ ? (franchise(champ.fr)?.name ?? champ.name).toUpperCase() : "—"}</Text>
+                <Text style={st.champ} numberOfLines={2}>{champ ? (franchise(champ.fr)?.name ?? champ.name).toUpperCase() : "—"}</Text>
                 {champ && <Text style={st.champMeta}>{iWon ? "YOUR TEAM" : `RUN BY ${champ.owner.toUpperCase()}`} • POWER {squadPower(champ)} • {champ.squad.length} PLAYERS • SPENT {formatMoney(spent(champ))}</Text>}
               </LinearGradient>
             </Rise>
@@ -93,7 +93,7 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
           </View>
 
           <View style={[st.actions]}>
-            <BigButton title={sharing ? "PREPARING…" : "SHARE AS A PICTURE"} icon="image" tone="mint" small style={{ flex: 1.6 }} onPress={shareImage} />
+            <BigButton title={sharing ? "PREPARING…" : "SHARE PICTURE"} icon="image" tone="mint" small style={{ flex: 1.6 }} onPress={shareImage} />
             <SoftButton title="SHARE TEXT" icon="share-social" style={{ flex: 1, height: 50 }} onPress={shareText} />
           </View>
 
@@ -127,7 +127,7 @@ const st = themed(() => StyleSheet.create({
   heroIcon: { position: "absolute", right: -24, bottom: -28 },
   badge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: "rgba(255, 214, 107, 0.24)", paddingHorizontal: 11, paddingVertical: 5, borderRadius: 11 },
   badgeText: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#FFE9A8", letterSpacing: 1.2 },
-  champ: { fontFamily: "LuckiestGuy_400Regular", fontSize: 38, color: "#FFF", letterSpacing: 1.5, marginTop: 14 },
+  champ: { fontFamily: "LuckiestGuy_400Regular", fontSize: 30, lineHeight: 34, color: "#FFF", letterSpacing: 1.5, marginTop: 14 },
   champMeta: { fontFamily: "Inter_700Bold", fontSize: 11, color: T.onPrimarySoft, letterSpacing: 0.6, marginTop: 2 },
   cardLabel: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.muted, letterSpacing: 1.5, marginBottom: 6 },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: T.line },

@@ -157,6 +157,7 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
               <Segmented options={TIMERS} value={cfg.timer as 10 | 15 | 20} disabled={!host} onChange={(t) => set({ timer: t })} labels={{ 10: "10 SEC", 15: "15 SEC", 20: "20 SEC" }} />
               <Text style={[k.label, { marginTop: 18 }]}>PLAYER POOL</Text>
               <Segmented options={FILTERS} value={cfg.filter} disabled={!host} onChange={(f) => set({ filter: f })} labels={{ ALL: "EVERYONE", INDIAN: "INDIAN", OVERSEAS: "OVERSEAS" }} />
+              <Text style={st.explain}>Players come up in sets, like the real auction: the marquee set first, then Batters Set 1, All-rounders Set 1, Wicket-keepers Set 1 and Bowlers Set 1, then each Set 2. The most popular players are in the earlier sets.</Text>
               <Text style={[k.label, { marginTop: 18 }]}>RETENTIONS</Text>
               <Segmented options={[0, 1, 2, 3] as const} value={cfg.retain as 0 | 1 | 2 | 3} disabled={!host} onChange={(n) => set({ retain: n })} labels={{ 0: "OFF", 1: "KEEP 1", 2: "KEEP 2", 3: "KEEP 3" }} />
               <Text style={st.explain}>{cfg.retain > 0 ? `Each team gets a squad from "last season" and may keep up to ${cfg.retain} before the auction, from ${formatMoney(retainPrice(cfg, 0))} each.` : "Every player starts in the auction."}</Text>

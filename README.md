@@ -69,6 +69,9 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | 🃏 **Right to Match and retentions** | Optional: every team gets a squad from "last season", keeps up to three players at fixed prices, and can match the winning bid on a former player with an RTM card. |
 | 📺 **Auctioneer mode** | Run the auction on a tablet or spare phone as the big screen while everyone bids from their own phone. |
 | 🏟️ **Run a real IPL team** | Everyone picks one of the ten franchises; teams show as CSK, MI, RCB… in their colours. |
+| 🗂️ **Sets, like the real auction** | Marquee set first, then Batters Set 1, All-rounders Set 1, Wicket-keepers Set 1, Bowlers Set 1, then each Set 2. The most popular players are in the earlier sets. |
+| ⭐ **Shortlist** | Star the players you want; you are alerted the moment one comes up. |
+| 💰 **Purses at a glance** | A strip in the arena shows every team's purse and squad, plus your safe maximum bid. |
 | 📋 **Players list** | A tab in the arena shows who is on the block, who is still to come, and who was sold to whom for how much. |
 | 👥 **137 players, or your own** | Role, country, base price and rating for each; 85 with a freely-licensed photo. Play Indian-only or overseas-only pools, and add up to 20 players of your own. |
 | 🤖 **Bots with personality** | Star hunters, bargain hunters, pace lovers… they build balanced squads, jump-bid, retain and use RTM cards. Practise solo or fill empty seats. |
@@ -112,6 +115,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | Classic | ₹90 Cr | 90 | 15 | 6 |
 | Mega | ₹120 Cr | 137 | 25 | 8 |
 
+- Players come up in **sets**: the marquee set (rating 90+), then each role in sets of about eight, most popular first.
 - Bidding opens at the player's **base price** (₹30 L – ₹2 Cr).
 - Each bid raises the price by **₹5 L** below ₹1 Cr, **₹10 L** up to ₹2 Cr, **₹20 L** up to ₹5 Cr and **₹25 L** above that. The two smaller buttons place a *jump bid*.
 - Every bid resets the clock (10, 15 or 20 seconds). **PASS** takes you out of the current player; if everyone else passes, the hammer falls immediately.
@@ -244,7 +248,7 @@ test-utils/           in-memory stand-in for the realtime database
 - Sound effects are synthesised by a script in this repository; no third-party samples are used.
 - Player ratings and base prices are game-design values, not official figures.
 
-Skelp! is a fan-made game. It is not affiliated with or endorsed by the IPL, the BCCI or any franchise; team names are used only to identify the teams, and no logos are used.
+Skelp! is a fan-made game. It is not affiliated with or endorsed by the IPL, the BCCI or any franchise; team names are used only to identify the teams. The team crests are original designs made for this app; the official franchise logos are trademarks and are not used.
 
 ## License
 

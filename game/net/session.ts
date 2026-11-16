@@ -330,6 +330,8 @@ export class ClientSession extends Base implements Session {
 
   getState() { return this.state; }
   getStatus() { return this.status; }
+  /** where this phone is connected to — enough to join the same arena again later */
+  get address() { return { host: this.host, port: this.port, online: this.online }; }
 
   private open() {
     if (this.status === "closed") return;
@@ -444,6 +446,8 @@ export function looksLikeState(s: any): s is State {
     if (typeof p.base !== "number" || typeof p.rating !== "number" || typeof p.overseas !== "boolean" || typeof p.country !== "string") return false;
     customIds.add(p.id);
   }
+  if (!Array.isArray(s.sets) || s.sets.length > 60) return false;
+  for (const set of s.sets) if (!set || typeof set.label !== "string" || set.label.length > 40 || !Array.isArray(set.pids) || !set.pids.every((p: any) => Number.isInteger(p))) return false;
   for (const key of ["former", "offers", "picks"]) if (!s[key] || typeof s[key] !== "object" || Array.isArray(s[key])) return false;
   if (!Array.isArray(s.teams) || s.teams.length > MAX_TEAMS || !Array.isArray(s.queue) || !Array.isArray(s.results) || !Array.isArray(s.unsold)) return false;
   const known = (pid: any) => Number.isInteger(pid) && ((pid >= 1 && pid <= PLAYERS.length) || customIds.has(pid));

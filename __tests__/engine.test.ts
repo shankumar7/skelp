@@ -1,5 +1,5 @@
 import { BotBrain, personality, roleTargets, valuation } from "../game/bots";
-import { Action, bidBlocker, buildQueue, franchise, FRANCHISES, poolPlayers, retainBlocker, retainPrice, RTM_MS, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
+import { Action, bidBlocker, buildQueue, buildSets, safeMaxBid, setOf, franchise, FRANCHISES, poolPlayers, retainBlocker, retainPrice, RTM_MS, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
 import { formatMoney, increment } from "../game/money";
 import { getPlayer, PLAYERS } from "../game/players";
 
@@ -292,7 +292,7 @@ describe("1.5 rules", () => {
     let s = withRules(2, 0, 1);
     expect(s.phase).toBe("auction");
     // find a lot whose former team is t1, and let t2 win it
-    while (s.former[String(s.lot!.pid)] !== "t1") s = run(s, { type: "pass", id: "t1" }, { type: "pass", id: "t2" }, { type: "tick", dt: 60000 }, { type: "tick", dt: 60000 });
+    while (s.former[String(s.lot!.pid)] !== "t1") s = run(s, { type: "pass", id: "t1" }, { type: "pass", id: "t2" }, { type: "tick", dt: 60000 });
     const pid = s.lot!.pid;
     const price = s.lot!.bid;
     s = run(s, { type: "bid", id: "t2", amount: price }, { type: "pass", id: "t1" });
@@ -343,5 +343,47 @@ describe("1.5 rules", () => {
     const owned = s.teams.flatMap((t) => t.squad.map((e) => e.pid));
     expect(new Set(owned).size).toBe(owned.length);
     if (rtm > 0 && retain === 0) expect(s.teams.some((t) => t.squad.some((e) => e.rtm))).toBe(true);
+  });
+});
+
+describe("sets", () => {
+  test("the pool is split into sets by role and popularity, marquee first", () => {
+    const sets = buildSets(999, 5);
+    expect(sets.flatMap((x) => x.pids)).toEqual(buildQueue(999, 5));
+    expect(sets[0].label).toMatch(/^MARQUEE SET/);
+    const labels = sets.map((x) => x.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    const firstRole = labels.findIndex((l) => !l.startsWith("MARQUEE"));
+    expect(labels.slice(firstRole, firstRole + 4)).toEqual(["BATTERS SET 1", "ALL-ROUNDERS SET 1", "WICKET-KEEPERS SET 1", "BOWLERS SET 1"]);
+    expect(labels).toContain("BATTERS SET 2");
+    for (const set of sets) {
+      expect(set.pids.length).toBeGreaterThan(0);
+      expect(set.pids.length).toBeLessThanOrEqual(13);
+      const role = set.label.startsWith("BATTERS") ? "BAT" : set.label.startsWith("BOWLERS") ? "BOWL" : set.label.startsWith("ALL") ? "AR" : set.label.startsWith("WICKET") ? "WK" : null;
+      if (role) expect(set.pids.every((pid) => getPlayer(pid).role === role && getPlayer(pid).rating < 90)).toBe(true);
+      else expect(set.pids.every((pid) => getPlayer(pid).rating >= 90)).toBe(true);
+    }
+    // set 1 of a role is at least as popular as set 2
+    const worst = (label: string) => Math.min(...sets.find((x) => x.label === label)!.pids.map((pid) => getPlayer(pid).rating));
+    const best = (label: string) => Math.max(...sets.find((x) => x.label === label)!.pids.map((pid) => getPlayer(pid).rating));
+    expect(worst("BATTERS SET 1")).toBeGreaterThanOrEqual(best("BATTERS SET 2"));
+    expect(worst("BOWLERS SET 1")).toBeGreaterThanOrEqual(best("BOWLERS SET 2"));
+  });
+  test("the state knows the current set, and the safe maximum bid", () => {
+    let s = started(3);
+    expect(setOf(s, s.lot!.pid)).toMatchObject({ label: s.sets[0].label, n: 1, of: s.sets[0].pids.length });
+    expect(setOf(s, s.queue[s.queue.length - 1])!.label).toMatch(/SET \d+$/);
+    // QUICK: squad of 8, so seven more places to keep 20 L for after this one
+    expect(safeMaxBid(s, s.teams[0])).toBe(5000 - 7 * 20);
+    s = { ...s, round: 2 };
+    expect(setOf(s, s.lot!.pid)!.label).toBe("ACCELERATED ROUND");
+  });
+  test("retained players leave their sets", () => {
+    let s = run(lobby(2), { type: "config", config: { ...PRESETS.QUICK, retain: 1, rtm: 0 } }, { type: "start", seed: 9 });
+    const keep = s.offers.t1[0];
+    s = run(s, { type: "retain", id: "t1", pids: [keep] }, { type: "retain", id: "t2", pids: [] });
+    expect(s.phase).toBe("auction");
+    expect(s.sets.flatMap((x) => x.pids)).toEqual(s.queue);
+    expect(s.queue).not.toContain(keep);
   });
 });
