@@ -4,7 +4,7 @@
 
 <h1 align="center">SKELP!</h1>
 
-<p align="center"><b>The IPL-style player auction you play with your friends — fully offline.</b></p>
+<p align="center"><b>The IPL-style player auction you play with your friends — offline on Wi-Fi, or online with a code.</b></p>
 
 <p align="center"><sub>Affiliated with <a href="https://classcom.tech">ClassCom</a></sub></p>
 
@@ -14,7 +14,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Android%207.0%2B-2EC4A0" alt="Android 7.0+" />
-  <img src="https://img.shields.io/badge/internet-not%20needed-FFB238" alt="No internet needed" />
+  <img src="https://img.shields.io/badge/play-offline%20or%20online-FFB238" alt="Play offline or online" />
   <img src="https://img.shields.io/badge/license-MIT-5B5FEF" alt="MIT licence" />
 </p>
 
@@ -24,8 +24,9 @@ Every cricket fan has argued about who they would have bought at the IPL auction
 **Skelp!** lets a group of friends actually do it. Everyone gets the same purse, real players come
 under the hammer one by one, the clock ticks, and the highest bid takes the player home.
 
-No internet is needed. One phone **hosts** the arena, and everyone on the same Wi-Fi — or connected
+**Nearby, no internet needed:** one phone **hosts** the arena, and everyone on the same Wi-Fi — or connected
 to that phone's **mobile hotspot** — joins it directly, phone to phone.
+**Anywhere, online:** host an online arena and friends join from wherever they are with a six-character code.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" width="19%" alt="Dashboard" />
@@ -62,6 +63,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | | |
 | --- | --- |
 | 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. Auctions never need the internet. |
+| 🌍 **Online multiplayer** | Friends anywhere join over the internet with a six-character code or an invite message. No account needed. |
 | 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Nearby*, or type the arena code. |
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
 | 🃏 **Right to Match and retentions** | Optional: every team gets a squad from "last season", keeps up to three players at fixed prices, and can match the winning bid on a former player with an RTM card. |
@@ -95,6 +97,12 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 > **Tip:** the host's phone runs the auction, so keep Skelp! open on it until the auction ends.
 > The app keeps the screen awake for you.
 
+### Playing online
+
+1. **Host:** tap **HOST ARENA**, choose **ANYWHERE • ONLINE**, then *Play and host*. The lobby shows a six-character **arena code**; tap **SHARE INVITE** to send it.
+2. **Everyone else:** type the code in the **arena code** box on the dashboard (or scan the QR code).
+3. Everyone needs an internet connection, and the host keeps Skelp! open — the host's phone still runs the auction.
+
 ## Auction rules
 
 | Mode | Purse | Players in pool | Max squad | Max overseas |
@@ -126,12 +134,14 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
 - `game/engine.ts` is a pure reducer holding all the rules. The host applies every action and broadcasts the resulting state, so all phones always agree.
 - On Android every connection is bound to the Wi-Fi network. A hotspot has no internet, so the phone would otherwise route the app over mobile data and never reach the host.
+- **Online play** reuses the same host and client sessions over a different transport: `game/net/online.ts` relays the messages through Firebase Realtime Database (`arenas/{code}`). The latest state is written once and read by every player; other messages are deleted as soon as they are read, and the arena is removed when the host closes it. Full updates go out on every change and every four seconds, which keeps an auction to a few megabytes.
 - `game/net/` is the LAN layer: newline-delimited JSON over a plain TCP socket ([react-native-tcp-socket](https://github.com/Rapsssito/react-native-tcp-socket)), heartbeats, automatic reconnect, and discovery by probing the hotspot gateway and then the rest of the local subnet.
 - The countdown is animated locally on each phone between host updates, so the clock stays smooth without flooding the network.
 
 ## Privacy and security
 
-- **Auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
+- **Wi-Fi auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
+- **Online auctions are relayed, not kept.** They pass through Firebase Realtime Database under the arena's code and are deleted when the host closes the arena. Only someone who has the code can read an arena, and only the host can change it. See [`database.rules.json`](database.rules.json). Guests are signed in anonymously for this.
 - **Accounts are optional.** Guests are stored only on the phone. With an account, the app keeps your username, avatar, stats and last ten auction results in Firebase (Google Cloud), linked to your email address, and syncs them whenever the phone is online. Delete the account at any time from the dashboard; that removes the backed-up data too.
 - **No ads and no tracking.** If the app crashes, an anonymous crash report (device model, Android version and the error — no name, email or auction data) is sent through Firebase Crashlytics the next time the phone is online.
 - **Updates come from this repository.** The app asks GitHub for the latest release and only ever downloads the APK attached to it; Android then refuses anything that is not signed with the Skelp! release key.
@@ -173,8 +183,9 @@ Online accounts use the Firebase project in `google-services.json` (`your-fireba
    These belong to the Skelp! release key that every APK from 1.5 on is signed with.
 2. **Firestore Database** → *Create database* → production mode, a nearby location (for India, `asia-south1` Mumbai).
 3. **Firestore Database → Rules** → paste [`firestore.rules`](firestore.rules) → *Publish*.
-4. **Crashlytics** → *Get started* (crash reports appear after the first crash is reported).
-5. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
+4. **Realtime Database** → *Create database* (any location) → *Rules* → paste [`database.rules.json`](database.rules.json) → *Publish*. Under **Authentication → Sign-in method**, enable **Anonymous** so guests can play online. Until this is done the app says "Online play is not switched on yet".
+5. **Crashlytics** → *Get started* (crash reports appear after the first crash is reported).
+6. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
 
 Until steps 1 and 2 are done, the app shows "Online accounts are not switched on yet" and players can still play as guests.
 
@@ -219,7 +230,8 @@ assets/players/       bundled player photos
 assets/sounds/        sound effects (generated by scripts/make-sounds.py)
 scripts/              player data, sound and APK build scripts
 plugins/              Expo config plugin for the Android build
-__tests__/            engine, LAN, account and updater tests
+__tests__/            engine, LAN, online, account and updater tests
+test-utils/           in-memory stand-in for the realtime database
 ```
 
 ## Credits

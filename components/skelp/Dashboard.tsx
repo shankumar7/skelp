@@ -7,6 +7,8 @@ import { formatMoney } from "@/game/money";
 import { getLocalIp, transport } from "@/game/net/native";
 import { ArenaInfo } from "@/game/net/protocol";
 import { ClientSession, HostSession, resolveCode, scan, Session } from "@/game/net/session";
+import { lookupOnline, makeOnlineTransport, normaliseCode } from "@/game/net/online";
+import { openOnline } from "@/game/net/onlineDb";
 import { openHotspotSettings, openWifiSettings } from "@/game/net/settings";
 import { QrScanner } from "./QrScanner";
 import { AccountCard, VerifyBanner } from "./AccountCard";
@@ -14,12 +16,13 @@ import { isSoundOn, play, setSoundOn } from "@/game/sound";
 import { Profile, saveSound, Stats } from "@/game/storage";
 import { AVATARS } from "./avatars";
 import { UpdateBanner } from "./Update";
-import { Backdrop, BigButton, Card, Chip, Column, IconBadge, k, ListRow, notify, Rise, RoundButton, s, SectionTitle, Sheet, SoftButton, useLayout } from "./ui";
+import { Backdrop, BigButton, Card, Chip, Column, IconBadge, k, ListRow, notify, Rise, RoundButton, s, SectionTitle, Segmented, Sheet, SoftButton, useLayout } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
 export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, onProfile, onCreateAccount, onAbout, onHistory, onTheme }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void; onProfile: (c: Partial<Profile>) => void; onCreateAccount: () => void; onAbout: () => void; onHistory: () => void; onTheme: () => void }) {
   const { wide } = useLayout();
   const [hostSheet, setHostSheet] = useState(false);
+  const [where, setWhere] = useState<"NEARBY" | "ONLINE">("NEARBY");
   const [editing, setEditing] = useState(false);
   const [code, setCode] = useState("");
   const [arenas, setArenas] = useState<ArenaInfo[]>([]);
@@ -66,20 +69,57 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, o
   };
   const joinRef = useRef(join);
   joinRef.current = join;
-  const onQr = (link: { host: string | null; port: number }) => {
+  /** Join an arena played over the internet, by its six-character code. */
+  const joinOnline = async (arenaCode: string) => {
+    if (busy) return;
+    setBusy(true);
+    scanRef.current?.cancel();
+    try {
+      const opened = await openOnline();
+      if (!opened.ok) return notify("ONLINE PLAY", opened.error);
+      const found = await lookupOnline(opened.db, arenaCode);
+      if (!found.ok) return notify("COULD NOT JOIN", found.error);
+      onEnter(new ClientSession(makeOnlineTransport(opened.db, arenaCode), arenaCode, me, 0, true));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const onQr = (link: { host: string | null; port: number; online?: string }) => {
     setShowQr(false);
+    if (link.online) return void joinOnline(link.online);
     if (link.host) return join(link.host, link.port);
     autoJoin.current = true; // the host is a hotspot and does not know its own address: search for it
     rescan();
   };
   const joinByCode = async () => {
     if (!code.trim()) return;
+    const online = normaliseCode(code);
+    if (online) return joinOnline(online);
     const host = resolveCode(code, await getLocalIp());
-    if (!host) return notify("CHECK THE CODE", "Type the arena code shown on the host's phone (for example 42), or the full host address like 192.168.43.1.");
+    if (!host) return notify("CHECK THE CODE", "Type the code shown on the host's phone: six letters and numbers for an online arena (for example K7M2QX), or a short number for a Wi-Fi arena (for example 42).");
     join(host);
+  };
+  const hostOnline = async (auctioneer: boolean) => {
+    if (busy) return;
+    setHostSheet(false);
+    setBusy(true);
+    scanRef.current?.cancel();
+    const session = new HostSession(me, `${profile.name}'s Arena`, Math.random, auctioneer);
+    try {
+      const opened = await openOnline();
+      if (!opened.ok) { session.leave(); return notify("ONLINE PLAY", opened.error); }
+      await session.serveOnline(opened.db);
+      onEnter(session);
+    } catch {
+      session.leave();
+      notify("COULD NOT HOST ONLINE", "Skelp! could not open an online arena. Check your internet connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   };
   const hostArena = async (lan: boolean, auctioneer = false) => {
     if (busy) return;
+    if (lan && where === "ONLINE") return hostOnline(auctioneer);
     setHostSheet(false);
     if (lan && !transport) return notify("NOT AVAILABLE HERE", "Hosting over Wi-Fi works in the Android app. Try SOLO PRACTICE here.");
     setBusy(true);
@@ -138,7 +178,7 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, o
                   <Ionicons name="hammer" size={130} color="rgba(255,255,255,0.10)" style={st.heroIcon} />
                   <Text style={st.heroKicker}>THE HAMMER IS WAITING</Text>
                   <Text style={st.heroTitle}>START AN AUCTION</Text>
-                  <Text style={st.heroSub}>Host for friends on the same Wi-Fi or your hotspot. No internet needed.</Text>
+                  <Text style={st.heroSub}>Host for friends nearby on Wi-Fi or a hotspot, or online for friends anywhere.</Text>
                   <View style={[s.row, { gap: 10, marginTop: 18 }]}>
                     <Pressable onPress={() => setHostSheet(true)} disabled={busy} style={({ pressed }) => [st.heroBtn, pressed && { transform: [{ scale: 0.97 }] }]} accessibilityLabel="Host your own arena">
                       {busy ? <ActivityIndicator color={T.primary} /> : <Ionicons name="add-circle" size={18} color={T.primary} />}
@@ -168,9 +208,10 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, o
                   </View>
                   <View style={st.codeBox}>
                     <Ionicons name="keypad" size={18} color={T.dim} />
-                    <TextInput value={code} onChangeText={setCode} onSubmitEditing={joinByCode} placeholder="ENTER ARENA CODE..." placeholderTextColor={T.dim} keyboardType="numbers-and-punctuation" returnKeyType="go" autoCapitalize="none" style={st.codeInput} />
-                    {code.trim().length > 0 && <Pressable onPress={joinByCode} hitSlop={10} accessibilityLabel="Join with code"><Ionicons name="arrow-forward-circle" size={30} color={T.primaryText} /></Pressable>}
+                    <TextInput value={code} onChangeText={setCode} onSubmitEditing={joinByCode} placeholder="ENTER ARENA CODE..." placeholderTextColor={T.dim} returnKeyType="go" autoCapitalize="characters" autoCorrect={false} maxLength={15} style={st.codeInput} />
+                    {busy ? <ActivityIndicator color={T.primaryText} /> : code.trim().length > 0 && <Pressable onPress={joinByCode} hitSlop={10} accessibilityLabel="Join with code"><Ionicons name="arrow-forward-circle" size={30} color={T.primaryText} /></Pressable>}
                   </View>
+                  <Text style={[st.netText, { flex: 0, marginTop: 8 }]}>ONLINE ARENA? TYPE ITS 6-CHARACTER CODE • WI-FI ARENA? TYPE ITS NUMBER</Text>
                   <View style={[s.row, { gap: 10, marginTop: 12 }]}>
                     <SoftButton title="NEARBY" icon="search" color={T.primaryText} style={{ flex: 1 }} onPress={rescan} />
                     <SoftButton title="WI-FI" icon="wifi" style={{ flex: 1 }} onPress={openWifiSettings} />
@@ -241,7 +282,9 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, o
       </ScrollView>
 
       <Sheet visible={hostSheet} onClose={() => setHostSheet(false)} title="HOST AN ARENA">
-        <Text style={[k.body, { color: T.muted, marginBottom: 14 }]}>Friends join over the same Wi-Fi, or your phone&apos;s hotspot. How do you want to run it?</Text>
+        <Text style={k.label}>WHERE ARE YOUR FRIENDS?</Text>
+        <Segmented options={["NEARBY", "ONLINE"] as const} value={where} onChange={setWhere} labels={{ NEARBY: "NEARBY • WI-FI", ONLINE: "ANYWHERE • ONLINE" }} />
+        <Text style={[k.body, { color: T.muted, marginVertical: 14 }]}>{where === "ONLINE" ? "Everyone needs the internet. Friends join from anywhere with a six-character code." : "No internet needed. Friends join over the same Wi-Fi, or your phone's hotspot."}</Text>
         <Card pad={16}>
           <ListRow icon="person-add" color={T.primary} title="Play and host" sub="You own a team and bid like everyone else. Best for a group of friends." onPress={() => hostArena(true)} />
           <ListRow icon="tv" color={T.mint} title="Auctioneer screen" sub="This device shows the auction on a big screen; everyone bids from their own phone." onPress={() => hostArena(true, true)} last />

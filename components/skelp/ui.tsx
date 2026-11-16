@@ -243,7 +243,7 @@ export function ListRow({ icon, color, title, sub, onPress, right, last }: { ico
       <IconBadge name={icon} color={color} size={38} />
       <View style={{ flex: 1, marginLeft: 14 }}>
         <Text style={k.listTitle} numberOfLines={1}>{title}</Text>
-        {sub ? <Text style={k.listSub} numberOfLines={2}>{sub}</Text> : null}
+        {sub ? <Text style={k.listSub} numberOfLines={4}>{sub}</Text> : null}
       </View>
       {right ?? (onPress ? <Ionicons name="chevron-forward" size={18} color={T.dim} /> : null)}
     </Pressable>
