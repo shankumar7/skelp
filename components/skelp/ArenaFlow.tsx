@@ -7,6 +7,9 @@ import { ClientSession, Session } from "@/game/net/session";
 import { Archive, HistoryItem } from "@/game/storage";
 import { Retention } from "./Retention";
 import { useSession } from "@/game/useSession";
+import { useAuctionAlerts } from "@/game/useAuctionAlerts";
+import { clearAlerts, enableAlerts } from "@/game/alerts";
+import * as Network from "expo-network";
 import { Arena } from "./Arena";
 import { Lobby } from "./Lobby";
 import { Results } from "./Results";
@@ -24,9 +27,18 @@ export function ArenaFlow({ session, insets, onExit, onFinished }: { session: Se
   const recorded = useRef(false);
   // phones pause apps in the background; when we come back, resync at once
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (next) => { if (next === "active") session.wake(); });
+    const sub = AppState.addEventListener("change", (next) => { if (next === "active") { session.wake(); clearAlerts(); } });
     return () => sub.remove();
   }, [session]);
+  // Wi-Fi came back, or the phone switched between Wi-Fi and mobile data: reconnect straight away
+  useEffect(() => {
+    let sub: { remove(): void } | null = null;
+    try { sub = Network.addNetworkStateListener((e) => { if (e.isConnected !== false) session.wake(); }); } catch {}
+    return () => { try { sub?.remove(); } catch {} };
+  }, [session]);
+  // notifications for the moments that matter while the app is behind another one
+  useEffect(() => { enableAlerts(); }, []);
+  useAuctionAlerts(state, session.myId, session.isHost);
   const phase = state?.phase;
 
   const leaveNow = () => { session.leave(); onExit(); };

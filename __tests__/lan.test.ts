@@ -347,3 +347,44 @@ test("auctioneer mode: the host has no team and clients do the bidding", async (
   await until(() => st(a).lot!.bidder === "phone-a", "undo to reach clients");
   expect(st(a).lot!.history).toHaveLength(1);
 });
+
+test("a bid shows on the bidder's phone at once, and the host's answer confirms it", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => st(host).teams.length === 2 && a.getStatus() === "live", "client to join");
+  host.setConfig(PRESETS.QUICK);
+  host.start();
+  await until(() => st(a)?.phase === "auction", "auction to start");
+  const base = st(a).lot!.bid;
+  a.bid(base);
+  // no waiting: the prediction is already on screen
+  expect(st(a).lot).toMatchObject({ bidder: "phone-a", bid: base, n: 1 });
+  await until(() => st(host).lot!.bidder === "phone-a", "host to confirm");
+  // a bid the rules do not allow is not predicted
+  a.bid(base);
+  expect(st(a).lot!.n).toBe(1);
+  host.bid(base + 50);
+  await until(() => st(a).lot!.bidder === "host", "host bid");
+  a.pass();
+  expect(st(a).lot!.passed).toContain("phone-a");
+  // the phone measures how far away the host is
+  expect(host.getLatency()).toBe(0);
+  await until(() => a.getLatency() !== null, "latency", 4000);
+  expect(a.getLatency()!).toBeLessThan(500);
+});
+
+test("when the line goes quiet after a network change, the phone reconnects quickly", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => st(host).teams.length === 2 && a.getStatus() === "live", "client to join");
+  // the socket is still "open" on the phone but nothing comes back: a dead link
+  const sock = (a as any).sock;
+  sock.write = () => {};
+  (a as any).lastSeen = Date.now();
+  const lines: any[] = [];
+  const realOnLine = (a as any).onLine.bind(a);
+  (a as any).onLine = (s: any, l: string) => { if (s !== sock) realOnLine(s, l); else lines.push(l); };
+  a.wake();
+  await until(() => (a as any).sock !== sock && a.getStatus() === "live" && (a as any).sock !== null, "reconnect", 6000);
+  expect(st(host).teams[1].connected).toBe(true);
+});

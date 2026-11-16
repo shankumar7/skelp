@@ -19,3 +19,5 @@ export function toggleStar(pid: number) {
   watchers.forEach((w) => w());
 }
 export const useStars = (): ReadonlySet<number> => useSyncExternalStore(subscribe, snapshot, snapshot);
+/** The shortlist right now, for code outside React. */
+export const getStars = (): ReadonlySet<number> => stars;

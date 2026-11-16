@@ -84,6 +84,9 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | 🌙 **Dark mode** | The same soft clay look in light and dark. |
 | 📱 **Phones and tablets** | Portrait or landscape; wide screens get a two-column layout. |
 | ⬆️ **In-app updates** | Skelp! checks GitHub for a new release, shows what is new and installs it. |
+| ⚡ **Instant bids** | Your bid shows the moment you tap; the host confirms it right after. |
+| 🔔 **Notifications** | Outbid, shortlisted player up, auction started or finished, a Right to Match waiting — you are told while Skelp! is in the background. |
+| 📶 **Connection quality** | Signal bars and the delay to the host, and immediate reconnection when the network changes. |
 | 🔁 **Drop-proof** | A phone that loses Wi-Fi or goes to the background reconnects on its own and keeps its team. |
 
 ## How to play with friends (no internet)
@@ -155,7 +158,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 - **Each player can only read and write their own data.** See [`firestore.rules`](firestore.rules).
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
 - **Untrusted input is bounded.** Names, avatars and ids from other phones are length-checked and sanitised, oversized messages drop the connection, reactions are rate-limited, and phones ignore malformed data from a host.
-- **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, installing packages (only to hand a downloaded Skelp! update to Android's installer, which still asks you), and the camera — asked for only when you tap *Scan to join*, and used only to read the code. No location, storage, contacts or microphone.
+- **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, notifications (asked the first time you enter an arena; shown only for your own auction), installing packages (only to hand a downloaded Skelp! update to Android's installer, which still asks you), and the camera — asked for only when you tap *Scan to join*, and used only to read the code. No location, storage, contacts or microphone.
 - The link between phones in an arena is not encrypted, so play on a network you trust.
 
 ## Development
