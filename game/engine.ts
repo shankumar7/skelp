@@ -7,18 +7,18 @@ import { CUSTOM_ID, getPlayer, MAX_CUSTOM, PLAYERS, Player, registerCustom, Role
 
 export const MAX_TEAMS = 10;
 /** The ten IPL franchises a player can run. Names and colours only — no logos. `ink` is the text colour that reads on the team colour. */
-export interface Franchise { code: string; name: string; city: string; color: string; ink: string }
+export interface Franchise { code: string; name: string; city: string; color: string; /** second colour of the crest */ color2: string; ink: string }
 export const FRANCHISES: Franchise[] = [
-  { code: "CSK", name: "Chennai Super Kings", city: "Chennai", color: "#F5B800", ink: "#3A2A00" },
-  { code: "MI", name: "Mumbai Indians", city: "Mumbai", color: "#1E78D6", ink: "#FFFFFF" },
-  { code: "RCB", name: "Royal Challengers Bengaluru", city: "Bengaluru", color: "#C8102E", ink: "#FFFFFF" },
-  { code: "KKR", name: "Kolkata Knight Riders", city: "Kolkata", color: "#7A4FD0", ink: "#FFFFFF" },
-  { code: "SRH", name: "Sunrisers Hyderabad", city: "Hyderabad", color: "#F26B1D", ink: "#FFFFFF" },
-  { code: "RR", name: "Rajasthan Royals", city: "Rajasthan", color: "#EA3A93", ink: "#FFFFFF" },
-  { code: "DC", name: "Delhi Capitals", city: "Delhi", color: "#4F63E8", ink: "#FFFFFF" },
-  { code: "PBKS", name: "Punjab Kings", city: "Punjab", color: "#F04A4A", ink: "#FFFFFF" },
-  { code: "LSG", name: "Lucknow Super Giants", city: "Lucknow", color: "#12A9BD", ink: "#FFFFFF" },
-  { code: "GT", name: "Gujarat Titans", city: "Gujarat", color: "#5F7896", ink: "#FFFFFF" },
+  { code: "CSK", name: "Chennai Super Kings", city: "Chennai", color: "#F5B800", color2: "#1F4FA8", ink: "#3A2A00" },
+  { code: "MI", name: "Mumbai Indians", city: "Mumbai", color: "#1E78D6", color2: "#D9B25A", ink: "#FFFFFF" },
+  { code: "RCB", name: "Royal Challengers Bengaluru", city: "Bengaluru", color: "#C8102E", color2: "#1B1B1F", ink: "#FFFFFF" },
+  { code: "KKR", name: "Kolkata Knight Riders", city: "Kolkata", color: "#7A4FD0", color2: "#F2C230", ink: "#FFFFFF" },
+  { code: "SRH", name: "Sunrisers Hyderabad", city: "Hyderabad", color: "#F26B1D", color2: "#1B1B1F", ink: "#FFFFFF" },
+  { code: "RR", name: "Rajasthan Royals", city: "Rajasthan", color: "#EA3A93", color2: "#2A4FB0", ink: "#FFFFFF" },
+  { code: "DC", name: "Delhi Capitals", city: "Delhi", color: "#4F63E8", color2: "#E23A3A", ink: "#FFFFFF" },
+  { code: "PBKS", name: "Punjab Kings", city: "Punjab", color: "#F04A4A", color2: "#DADCE6", ink: "#FFFFFF" },
+  { code: "LSG", name: "Lucknow Super Giants", city: "Lucknow", color: "#12A9BD", color2: "#F28A1D", ink: "#FFFFFF" },
+  { code: "GT", name: "Gujarat Titans", city: "Gujarat", color: "#5F7896", color2: "#D0AC62", ink: "#FFFFFF" },
 ];
 export const franchise = (code: string | null | undefined): Franchise | undefined => FRANCHISES.find((f) => f.code === code);
 
@@ -58,6 +58,8 @@ export interface Config {
   rtm: number;
 }
 export type PoolFilter = "ALL" | "INDIAN" | "OVERSEAS";
+/** Players go under the hammer in sets, like the real auction: marquee first, then each role by popularity. */
+export interface AuctionSet { label: string; pids: number[] }
 export interface Lot {
   pid: number;
   bid: number;
@@ -86,6 +88,8 @@ export interface State {
   unsold: number[];
   results: Result[];
   paused: boolean;
+  /** the sets the pool was split into (in auction order) */
+  sets: AuctionSet[];
   /** players the host added for this arena */
   custom: Player[];
   /** player id -> the team that had the player "last season" (retentions / RTM) */
@@ -136,7 +140,7 @@ export const RETAIN_MS = 60000;
 const FORMER_SIZE = 4;
 
 export function createState(arena: string, hostId: string): State {
-  return { arena, hostId, phase: "lobby", config: PRESETS.CLASSIC, teams: [], queue: [], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false, custom: [], former: {}, offers: {}, picks: {}, retainMs: 0 };
+  return { arena, hostId, phase: "lobby", config: PRESETS.CLASSIC, teams: [], queue: [], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false, sets: [], custom: [], former: {}, offers: {}, picks: {}, retainMs: 0 };
 }
 
 // ---------- helpers ----------
@@ -159,8 +163,16 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
   return a;
 }
 
-/** Builds the auction order: marquee set first, then role sets — like the real thing. */
-export function buildQueue(pool: number, seed: number, filter: PoolFilter = "ALL", custom: Player[] = []): number[] {
+const SET_NAMES: Record<Role, string> = { BAT: "BATTERS", AR: "ALL-ROUNDERS", WK: "WICKET-KEEPERS", BOWL: "BOWLERS" };
+/** about this many players per set */
+const SET_SIZE = 8;
+
+/**
+ * Splits the pool into sets, in auction order: the marquee set first, then Batters Set 1, All-rounders Set 1,
+ * Wicket-keepers Set 1, Bowlers Set 1, then every role's Set 2, and so on. Within a role the most popular
+ * (highest-rated) players are in Set 1. The order inside a set is shuffled.
+ */
+export function buildSets(pool: number, seed: number, filter: PoolFilter = "ALL", custom: Player[] = []): AuctionSet[] {
   const rnd = mulberry32(seed);
   const all = poolPlayers(filter, custom);
   let chosen: Player[];
@@ -176,10 +188,43 @@ export function buildQueue(pool: number, seed: number, filter: PoolFilter = "ALL
     // the host's own players are always in
     for (const p of custom) if (!chosen.includes(p)) chosen.push(p);
   }
-  const marquee = shuffle(chosen.filter((p) => p.rating >= 90), rnd);
+  const chunk = (players: Player[]): Player[][] => {
+    const n = Math.max(1, Math.round(players.length / SET_SIZE));
+    const size = Math.ceil(players.length / n);
+    return Array.from({ length: n }, (_, i) => players.slice(i * size, (i + 1) * size)).filter((c) => c.length > 0);
+  };
+  const popular = (a: Player, b: Player) => b.rating - a.rating || a.id - b.id;
+  const sets: AuctionSet[] = [];
+  const marquee = chunk(chosen.filter((p) => p.rating >= 90).sort(popular));
+  marquee.forEach((c, i) => sets.push({ label: marquee.length > 1 ? `MARQUEE SET ${i + 1}` : "MARQUEE SET", pids: shuffle(c, rnd).map((p) => p.id) }));
   const rest = chosen.filter((p) => p.rating < 90);
-  const sets = ["BAT", "AR", "WK", "BOWL"].flatMap((role) => shuffle(rest.filter((p) => p.role === role), rnd));
-  return [...marquee, ...sets].map((p) => p.id);
+  const order: Role[] = ["BAT", "AR", "WK", "BOWL"];
+  const byRole = order.map((role) => chunk(rest.filter((p) => p.role === role).sort(popular)));
+  for (let k = 0; k < Math.max(...byRole.map((c) => c.length)); k++) {
+    order.forEach((role, r) => {
+      const c = byRole[r][k];
+      if (c) sets.push({ label: `${SET_NAMES[role]} SET ${k + 1}`, pids: shuffle(c, rnd).map((p) => p.id) });
+    });
+  }
+  return sets;
+}
+/** The auction order: every set, one after the other. */
+export function buildQueue(pool: number, seed: number, filter: PoolFilter = "ALL", custom: Player[] = []): number[] {
+  return buildSets(pool, seed, filter, custom).flatMap((x) => x.pids);
+}
+/** Which set a player belongs to, and where the player sits in it. */
+export function setOf(s: State, pid: number): { label: string; n: number; of: number } | null {
+  if (s.round === 2) return { label: "ACCELERATED ROUND", n: s.pos + 1, of: s.queue.length };
+  for (const set of s.sets) {
+    const i = set.pids.indexOf(pid);
+    if (i >= 0) return { label: set.label, n: i + 1, of: set.pids.length };
+  }
+  return null;
+}
+/** The most a team can bid and still afford the base price for every open place in its eleven. */
+export function safeMaxBid(s: State, team: Team): number {
+  const open = Math.max(0, Math.min(s.config.squadMax, 11) - team.squad.length - 1);
+  return Math.max(0, team.purse - open * 20);
 }
 
 /** Everyone who can come up for auction under a pool filter. */
@@ -346,7 +391,7 @@ function finishRetention(s: State): State {
   });
   const former: Record<string, string> = {};
   if (s.config.rtm > 0) for (const pid in s.former) if (!kept.has(Number(pid))) former[pid] = s.former[pid];
-  return openLot({ ...s, phase: "auction", teams, former, results, queue: s.queue.filter((pid) => !kept.has(pid)), pos: 0, retainMs: 0 });
+  return openLot({ ...s, phase: "auction", teams, former, results, queue: s.queue.filter((pid) => !kept.has(pid)), sets: s.sets.map((x) => ({ ...x, pids: x.pids.filter((pid) => !kept.has(pid)) })).filter((x) => x.pids.length > 0), pos: 0, retainMs: 0 });
 }
 function finishRetentionIfReady(s: State): State {
   const waiting = s.teams.some((t) => (t.isBot || t.connected) && !(t.id in s.picks));
@@ -412,8 +457,9 @@ export function reduce(s: State, a: Action): State {
       return { ...s, custom: s.custom.filter((p) => p.id !== a.pid) };
     case "start": {
       if (s.phase !== "lobby" || s.teams.length < 2) return s;
-      const queue = buildQueue(s.config.pool, a.seed, s.config.filter, s.custom);
-      let next: State = { ...s, queue, pos: 0, round: 1, unsold: [], results: [], paused: false, former: {}, offers: {}, picks: {}, retainMs: 0, teams: s.teams.map((t) => ({ ...t, purse: s.config.purse, squad: [], rtm: s.config.rtm })) };
+      const sets = buildSets(s.config.pool, a.seed, s.config.filter, s.custom);
+      const queue = sets.flatMap((x) => x.pids);
+      let next: State = { ...s, sets, queue, pos: 0, round: 1, unsold: [], results: [], paused: false, former: {}, offers: {}, picks: {}, retainMs: 0, teams: s.teams.map((t) => ({ ...t, purse: s.config.purse, squad: [], rtm: s.config.rtm })) };
       if (s.config.retain > 0 || s.config.rtm > 0) next = dealFormer(next, a.seed);
       if (s.config.retain > 0 && Object.keys(next.offers).length > 0) {
         next = { ...next, phase: "retention", retainMs: RETAIN_MS };

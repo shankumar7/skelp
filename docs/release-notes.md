@@ -5,7 +5,15 @@ The IPL-style player auction you play with your friends — offline over Wi-Fi o
 > **Have 1.5?** Open Skelp! and it offers this update itself (or use *About → Check for updates*).
 > **Have 1.4 or earlier?** Uninstall the old Skelp! first, then install this one. This is a one-time step.
 
-### New in 1.7
+### New in 1.8
+- **Players come up in sets**, like the real auction: the marquee set first, then Batters Set 1, All-rounders Set 1, Wicket-keepers Set 1, Bowlers Set 1, then each Set 2 and so on. The most popular players are in the earlier sets. The arena shows the set and the player's place in it, and the *Players* tab is grouped by set.
+- **Shortlist.** Star players in the pool or in the arena; you get an alert the moment one of them comes up.
+- **Every purse at a glance.** A strip under the bid shows each team's purse and squad size, who is leading and who has passed.
+- **Safe maximum bid.** The arena tells you the most you can bid and still fill your eleven.
+- **Rejoin.** If the app closes mid-auction, the dashboard offers your arena back.
+- **Team crests.** Each franchise has its own crest in the team colours (original designs, not the official logos, which are trademarks).
+
+### From 1.7
 - **Run a real IPL team.** Everyone picks one of the ten franchises in the lobby, and teams are shown by their name (CSK, MI, RCB…) and colour instead of the player's name.
 - **Players list in the arena.** A new *Players* tab shows every player in the auction: on the block, still to come, sold (to whom and for how much) and unsold.
 

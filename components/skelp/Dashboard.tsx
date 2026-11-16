@@ -13,13 +13,13 @@ import { openHotspotSettings, openWifiSettings } from "@/game/net/settings";
 import { QrScanner } from "./QrScanner";
 import { AccountCard, VerifyBanner } from "./AccountCard";
 import { isSoundOn, play, setSoundOn } from "@/game/sound";
-import { Profile, saveSound, Stats } from "@/game/storage";
+import { LastArena, Profile, saveSound, Stats } from "@/game/storage";
 import { AVATARS } from "./avatars";
 import { UpdateBanner } from "./Update";
 import { Backdrop, BigButton, Card, Chip, Column, IconBadge, k, ListRow, notify, Rise, RoundButton, s, SectionTitle, Segmented, Sheet, SoftButton, useLayout } from "./ui";
 
 /** Home base: find arenas on the local network, host one, or practise against bots. */
-export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, onProfile, onCreateAccount, onAbout, onHistory, onTheme }: { profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void; onProfile: (c: Partial<Profile>) => void; onCreateAccount: () => void; onAbout: () => void; onHistory: () => void; onTheme: () => void }) {
+export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, onProfile, onCreateAccount, onAbout, onHistory, onTheme, lastArena, onForget }: { lastArena: LastArena | null; onForget: () => void; profile: Profile; stats: Stats; insets: any; onLogout: () => void; onEnter: (session: Session) => void; onPool: () => void; onProfile: (c: Partial<Profile>) => void; onCreateAccount: () => void; onAbout: () => void; onHistory: () => void; onTheme: () => void }) {
   const { wide } = useLayout();
   const [hostSheet, setHostSheet] = useState(false);
   const [where, setWhere] = useState<"NEARBY" | "ONLINE">("NEARBY");
@@ -168,6 +168,21 @@ export function Dashboard({ profile, stats, insets, onLogout, onEnter, onPool, o
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Column max={900}>
           <UpdateBanner />
+          {lastArena && (
+            <Card pad={14} style={{ marginTop: 18, borderColor: T.gold, borderWidth: 1.5 }}>
+              <View style={s.row}>
+                <IconBadge name="enter" color={T.gold} size={42} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={st.histName} numberOfLines={1}>{lastArena.arena.toUpperCase()}</Text>
+                  <Text style={st.histMeta}>YOU LEFT THIS ARENA WITHOUT FINISHING — YOUR TEAM IS STILL THERE</Text>
+                </View>
+              </View>
+              <View style={[s.row, { gap: 10, marginTop: 12 }]}>
+                <SoftButton title="FORGET" style={{ flex: 1 }} onPress={onForget} />
+                <BigButton title="REJOIN" small tone="gold" icon="enter" style={{ flex: 2 }} onPress={() => (lastArena.online ? joinOnline(lastArena.online) : join(lastArena.host, lastArena.port))} />
+              </View>
+            </Card>
+          )}
           <VerifyBanner profile={profile} onProfile={onProfile} />
 
           <View style={wide ? st.twoCol : null}>

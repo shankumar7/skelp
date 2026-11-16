@@ -149,17 +149,26 @@ export function IconBadge({ name, color, size = 44 }: { name: any; color: string
     </View>
   );
 }
-/** A team's round badge: its IPL franchise code on the team colour. */
+/** A team's crest: an original shield in the team's two colours with its short name. */
 export function TeamBadge({ team, size = 34 }: { team: { fr?: string; name: string; color: string; avatar?: string }; size?: number }) {
   const fr = franchise(team.fr);
-  const code = fr?.code ?? "";
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: team.color, alignItems: "center", justifyContent: "center", boxShadow: `0px 4px 8px ${team.color}55, inset 0px -3px 5px rgba(0, 0, 0, 0.18), inset 0px 3px 5px rgba(255, 255, 255, 0.4)` }}>
-      {fr ? (
-        <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: size * (code.length >= 4 ? 0.26 : code.length === 3 ? 0.31 : 0.38), color: fr.ink, letterSpacing: 0.2 }} allowFontScaling={false}>{code}</Text>
-      ) : (
+  if (!fr) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: team.color, alignItems: "center", justifyContent: "center" }}>
         <Ionicons name={(team.avatar ?? "shield") as any} size={size * 0.46} color="#FFF" />
-      )}
+      </View>
+    );
+  }
+  const h = size * 1.1;
+  const top = size * 0.3, bottom = size * 0.5;
+  const letters = fr.code.length;
+  return (
+    <View style={{ width: size, height: h, borderTopLeftRadius: top, borderTopRightRadius: top, borderBottomLeftRadius: bottom, borderBottomRightRadius: bottom, backgroundColor: fr.color2, padding: Math.max(1.5, size * 0.055), boxShadow: `0px ${size * 0.12}px ${size * 0.22}px ${fr.color}66` }} accessibilityLabel={fr.name}>
+      <View style={{ flex: 1, borderTopLeftRadius: top * 0.82, borderTopRightRadius: top * 0.82, borderBottomLeftRadius: bottom * 0.9, borderBottomRightRadius: bottom * 0.9, backgroundColor: fr.color, overflow: "hidden", alignItems: "center", justifyContent: "center", boxShadow: "inset 0px -3px 5px rgba(0, 0, 0, 0.2), inset 0px 3px 5px rgba(255, 255, 255, 0.38)" }}>
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: h * 0.13, backgroundColor: fr.color2, opacity: 0.9 }} />
+        <View style={{ position: "absolute", bottom: -size * 0.56, width: size * 0.74, height: size * 0.74, backgroundColor: fr.color2, opacity: 0.9, transform: [{ rotate: "45deg" }] }} />
+        <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: size * (letters >= 4 ? 0.235 : letters === 3 ? 0.285 : 0.36), color: fr.ink, letterSpacing: 0.2, marginTop: -size * 0.04 }} allowFontScaling={false}>{fr.code}</Text>
+      </View>
     </View>
   );
 }

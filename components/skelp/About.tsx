@@ -22,7 +22,11 @@ const SOCIALS = [
   { icon: "mail", label: "Email", url: `mailto:${SUPPORT_EMAIL}` },
 ];
 const WHATS_NEW = [
-  ["shield", "Run a real IPL team", "Pick one of the ten franchises in the lobby; teams show as CSK, MI, RCB…"],
+  ["albums", "Players come up in sets", "Marquee first, then Batters Set 1, Bowlers Set 1… the most popular players in the earlier sets."],
+  ["star", "Shortlist", "Star the players you want; Skelp! tells you the moment they come up."],
+  ["wallet", "Every purse at a glance", "A strip in the arena shows each team's purse and squad, and your safe maximum bid."],
+  ["enter", "Rejoin", "Closed the app mid-auction? The dashboard offers you your arena back."],
+  ["shield", "Run a real IPL team", "Pick one of the ten franchises in the lobby; each has its own crest in the team colours."],
   ["list", "Players list in the arena", "See who is on the block, who is still to come, and who went where for how much."],
   ["globe", "Play online", "Host an arena for friends anywhere: they join over the internet with a six-character code."],
   ["sync", "In-app updates", "Skelp! checks for new versions and installs them for you."],

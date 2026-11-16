@@ -27,7 +27,9 @@ export interface ArchiveTeam { id: string; name: string; fr?: string; owner: str
 export interface ArchivePlayer { id: number; name: string; role: string; country: string; overseas: boolean; base: number; rating: number }
 export interface Archive { date: number; arena: string; mode: string; myId: string; sold: number; unsold: number; teams: ArchiveTeam[]; custom: ArchivePlayer[] }
 export type ThemeChoice = "light" | "dark";
-interface Saved { current: Profile | null; stats: Stats; sound: boolean; theme?: ThemeChoice; archive: Archive[]; skippedUpdate?: string }
+/** The arena this phone last joined, so it can get back in after the app was closed. */
+export interface LastArena { arena: string; online: string | null; host: string; port: number; at: number }
+interface Saved { current: Profile | null; stats: Stats; sound: boolean; theme?: ThemeChoice; archive: Archive[]; skippedUpdate?: string; stars?: number[]; lastArena?: LastArena | null }
 export const MAX_ARCHIVE = 20;
 
 const KEY = "skelp.v1";
@@ -93,6 +95,15 @@ export async function updateProfile(changes: Partial<Profile>): Promise<Profile 
 export async function saveTheme(theme: ThemeChoice) {
   const d = await load();
   await save({ ...d, theme });
+}
+export async function saveStars(stars: number[]) {
+  const d = await load();
+  await save({ ...d, stars: stars.slice(0, 300) });
+}
+export async function saveLastArena(lastArena: LastArena | null) {
+  const d = await load();
+  if (!lastArena && !d.lastArena) return;
+  await save({ ...d, lastArena });
 }
 /** Remember that the player does not want to be asked about this version again. */
 export async function skipUpdate(version: string) {

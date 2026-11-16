@@ -5,9 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatMoney } from "@/game/money";
 import { COUNTRY_LABEL, Player, PLAYERS, Role, ROLE_LABEL } from "@/game/players";
 import { PlayerPhoto } from "./PlayerPhoto";
+import { toggleStar, useStars } from "@/game/stars";
 import { s } from "./ui";
 
-const FILTERS = ["ALL", "BAT", "BOWL", "AR", "WK", "OVERSEAS"] as const;
+const FILTERS = ["ALL", "★", "BAT", "BOWL", "AR", "WK", "OVERSEAS"] as const;
 type Filter = (typeof FILTERS)[number];
 const SORTED = PLAYERS.slice().sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name));
 
@@ -19,8 +20,9 @@ export function PlayerPool({ insets, onBack }: { insets: any; onBack: () => void
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { onBack(); return true; });
     return () => sub.remove();
   }, [onBack]);
+  const stars = useStars();
   const q = query.trim().toLowerCase();
-  const list = SORTED.filter((p) => (filter === "ALL" || (filter === "OVERSEAS" ? p.overseas : p.role === (filter as Role))) && (!q || p.name.toLowerCase().includes(q)));
+  const list = SORTED.filter((p) => (filter === "ALL" || (filter === "★" ? stars.has(p.id) : filter === "OVERSEAS" ? p.overseas : p.role === (filter as Role))) && (!q || p.name.toLowerCase().includes(q)));
 
   return (
     <View style={[s.screen, { backgroundColor: T.sand }]}>
@@ -41,7 +43,7 @@ export function PlayerPool({ insets, onBack }: { insets: any; onBack: () => void
         <View style={st.filters}>
           {FILTERS.map((f) => (
             <Pressable key={f} onPress={() => setFilter(f)} style={[s.arenaTabBtn, st.filterBtn, filter === f && s.arenaTabBtnOn]}>
-              <Text style={[s.arenaTabText, filter === f && s.arenaTabTextOn]}>{f}</Text>
+              <Text style={[s.arenaTabText, filter === f && s.arenaTabTextOn]}>{f === "★" ? `★ ${stars.size}` : f}</Text>
             </Pressable>
           ))}
         </View>
@@ -53,16 +55,21 @@ export function PlayerPool({ insets, onBack }: { insets: any; onBack: () => void
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: insets.bottom + 30 }}
         initialNumToRender={12}
         keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={<View style={s.arenaComingSoon}><Text style={s.arenaComingSoonText}>NO PLAYER MATCHES</Text></View>}
-        renderItem={({ item }) => <Row p={item} />}
+        ListHeaderComponent={<Text style={st.hint}>TAP A STAR TO SHORTLIST A PLAYER — SKELP! TELLS YOU WHEN THEY COME UP FOR AUCTION</Text>}
+        ListEmptyComponent={<View style={s.arenaComingSoon}><Text style={[s.arenaComingSoonText, { textAlign: "center" }]}>{filter === "★" ? "YOUR SHORTLIST IS EMPTY" : "NO PLAYER MATCHES"}</Text></View>}
+        extraData={stars}
+        renderItem={({ item }) => <Row p={item} starred={stars.has(item.id)} />}
       />
     </View>
   );
 }
 
-function Row({ p }: { p: Player }) {
+function Row({ p, starred }: { p: Player; starred: boolean }) {
   return (
     <View style={s.arenaLogItem}>
+      <Pressable onPress={() => toggleStar(p.id)} hitSlop={10} style={{ marginRight: 10 }} accessibilityLabel={`${starred ? "Remove" : "Add"} ${p.name} ${starred ? "from" : "to"} shortlist`}>
+        <Ionicons name={starred ? "star" : "star-outline"} size={22} color={starred ? T.gold : T.dim} />
+      </Pressable>
       <PlayerPhoto player={p} size={44} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={st.name} numberOfLines={1}>{p.name}</Text>
@@ -77,6 +84,7 @@ function Row({ p }: { p: Player }) {
 }
 
 const st = themed(() => StyleSheet.create({
+  hint: { fontFamily: "Inter_800ExtraBold", fontSize: 8.5, color: T.muted, letterSpacing: 0.8, textAlign: "center", marginBottom: 10, lineHeight: 13 },
   filters: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14, marginBottom: 10 },
   filterBtn: { paddingHorizontal: 13, paddingVertical: 9, boxShadow: T.claySoft },
   name: { fontFamily: "Poppins_600SemiBold", fontSize: 14, color: T.ink },
