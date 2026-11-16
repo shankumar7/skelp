@@ -2,13 +2,13 @@ import { Platform, ScrollView, Share, Text, View, StyleSheet } from "react-nativ
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
-import { spent, squadPower, standings, State } from "@/game/engine";
+import { franchise, spent, squadPower, standings, State } from "@/game/engine";
 import { formatMoney } from "@/game/money";
 import { getPlayer } from "@/game/players";
 import { play } from "@/game/sound";
 import { Squads } from "./Arena";
 import { T, themed } from "./theme";
-import { Backdrop, BigButton, Card, Column, IconBadge, Rise, SectionTitle, SoftButton } from "./ui";
+import { Backdrop, BigButton, Card, Column, IconBadge, Rise, SectionTitle, SoftButton, TeamBadge } from "./ui";
 
 /** Final table once the hammer has fallen on the last player. */
 export function Results({ state, myId, insets, onExit }: { state: State; myId: string; insets: any; onExit: () => void }) {
@@ -63,8 +63,8 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
                 <View style={st.ring} />
                 <Ionicons name="trophy" size={150} color="rgba(255,255,255,0.12)" style={st.heroIcon} />
                 <View style={st.badge}><Ionicons name="trophy" size={11} color="#FFE9A8" /><Text style={st.badgeText}>STRONGEST SQUAD</Text></View>
-                <Text style={st.champ} numberOfLines={1} adjustsFontSizeToFit>{champ ? champ.name.toUpperCase() : "—"}{iWon ? " (YOU)" : ""}</Text>
-                {champ && <Text style={st.champMeta}>POWER {squadPower(champ)} • {champ.squad.length} PLAYERS • SPENT {formatMoney(spent(champ))}</Text>}
+                <Text style={st.champ} numberOfLines={1} adjustsFontSizeToFit>{champ ? (franchise(champ.fr)?.name ?? champ.name).toUpperCase() : "—"}</Text>
+                {champ && <Text style={st.champMeta}>{iWon ? "YOUR TEAM" : `RUN BY ${champ.owner.toUpperCase()}`} • POWER {squadPower(champ)} • {champ.squad.length} PLAYERS • SPENT {formatMoney(spent(champ))}</Text>}
               </LinearGradient>
             </Rise>
 
@@ -73,7 +73,7 @@ export function Results({ state, myId, insets, onExit }: { state: State; myId: s
               {table.map((t, i) => (
                 <View key={t.id} style={[st.row, i === table.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={[st.rank, i === 0 && { backgroundColor: T.goldSoft }]}><Text style={[st.rankText, i === 0 && { color: T.goldText }]}>{i + 1}</Text></View>
-                  <View style={[st.dot, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={15} color={t.color} /></View>
+                  <View style={{ marginRight: 12 }}><TeamBadge team={t} size={34} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={st.team} numberOfLines={1}>{t.name.toUpperCase()}{t.id === myId ? " (YOU)" : ""}</Text>
                     <Text style={st.meta}>{t.squad.length} PLAYERS • {formatMoney(t.purse)} LEFT</Text>

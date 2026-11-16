@@ -23,7 +23,7 @@ export interface Profile {
 export interface HistoryItem { date: number; arena: string; rank: number; teams: number; power: number; spent: number; players: number }
 export interface Stats { auctions: number; wins: number; spent: number; history: HistoryItem[] }
 /** A finished auction kept on this phone in full, so it can be browsed later. */
-export interface ArchiveTeam { id: string; name: string; owner: string; color: string; avatar: string; isBot: boolean; purse: number; power: number; squad: { pid: number; price: number; kept?: boolean; rtm?: boolean }[] }
+export interface ArchiveTeam { id: string; name: string; fr?: string; owner: string; color: string; avatar: string; isBot: boolean; purse: number; power: number; squad: { pid: number; price: number; kept?: boolean; rtm?: boolean }[] }
 export interface ArchivePlayer { id: number; name: string; role: string; country: string; overseas: boolean; base: number; rating: number }
 export interface Archive { date: number; arena: string; mode: string; myId: string; sold: number; unsold: number; teams: ArchiveTeam[]; custom: ArchivePlayer[] }
 export type ThemeChoice = "light" | "dark";

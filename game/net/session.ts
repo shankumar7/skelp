@@ -35,8 +35,8 @@ export interface Session {
   /** be told about every reaction (yours included); returns an unsubscribe function */
   onReaction(cb: (teamId: string, emoji: string) => void): () => void;
   leave(): void;
-  /** rename / recolour / change the emblem of your own team (lobby only) */
-  setTeam(change: { name?: string; color?: string; avatar?: string }): void;
+  /** take another IPL franchise for your team (lobby only) */
+  setTeam(fr: string): void;
   /** choose the players to keep before the auction */
   retain(pids: number[]): void;
   /** answer a Right to Match offer */
@@ -232,7 +232,7 @@ export class HostSession extends Base implements Session {
         const a = m.a;
         if (a && a.type === "bid" && typeof a.amount === "number") this.apply({ type: "bid", id: peer.id, amount: a.amount });
         else if (a && a.type === "pass") this.apply({ type: "pass", id: peer.id });
-        else if (a && a.type === "team") this.apply({ type: "team", id: peer.id, name: typeof a.name === "string" ? a.name.slice(0, 40) : undefined, color: typeof a.color === "string" ? a.color : undefined, avatar: typeof a.avatar === "string" ? a.avatar : undefined });
+        else if (a && a.type === "team" && typeof a.fr === "string") this.apply({ type: "team", id: peer.id, fr: a.fr.slice(0, 8) });
         else if (a && a.type === "retain" && Array.isArray(a.pids) && a.pids.length <= 5 && a.pids.every((p: any) => Number.isInteger(p))) this.apply({ type: "retain", id: peer.id, pids: a.pids });
         else if (a && a.type === "rtm") this.apply({ type: "rtm", id: peer.id, use: a.use === true });
       }
@@ -266,7 +266,7 @@ export class HostSession extends Base implements Session {
   }
   bid(amount: number) { this.apply({ type: "bid", id: this.myId, amount }); }
   pass() { this.apply({ type: "pass", id: this.myId }); }
-  setTeam(change: { name?: string; color?: string; avatar?: string }) { this.apply({ type: "team", id: this.myId, ...change }); }
+  setTeam(fr: string) { this.apply({ type: "team", id: this.myId, fr }); }
   retain(pids: number[]) { this.apply({ type: "retain", id: this.myId, pids }); }
   rtm(use: boolean) { this.apply({ type: "rtm", id: this.myId, use }); }
   undo() { this.apply({ type: "undo" }); }
@@ -275,7 +275,7 @@ export class HostSession extends Base implements Session {
   removePlayer(pid: number) { this.apply({ type: "removePlayer", pid }); }
   setConfig(c: Config) { this.apply({ type: "config", config: c }); }
   addBot() {
-    const used = new Set(this.state.teams.map((t) => t.name));
+    const used = new Set(this.state.teams.map((t) => t.owner));
     const i = BOT_NAMES.findIndex((n) => !used.has(n));
     if (i < 0) return;
     this.apply({ type: "join", id: `bot-${++this.botSeq}-${Math.floor(this.rnd() * 1e9)}`, name: BOT_NAMES[i], avatar: BOT_AVATARS[i], isBot: true });
@@ -406,7 +406,7 @@ export class ClientSession extends Base implements Session {
   bid(amount: number) { this.send({ type: "bid", id: this.myId, amount }); }
   pass() { this.send({ type: "pass", id: this.myId }); }
   react(emoji: string) { this.sock?.write(encode({ t: "react", e: emoji })); }
-  setTeam(change: { name?: string; color?: string; avatar?: string }) { this.send({ type: "team", id: this.myId, ...change }); }
+  setTeam(fr: string) { this.send({ type: "team", id: this.myId, fr }); }
   retain(pids: number[]) { this.send({ type: "retain", id: this.myId, pids }); }
   rtm(use: boolean) { this.send({ type: "rtm", id: this.myId, use }); }
   undo() {}
@@ -451,7 +451,7 @@ export function looksLikeState(s: any): s is State {
   for (const id in s.picks) if (!Array.isArray(s.picks[id]) || !s.picks[id].every(known)) return false;
   for (const pid in s.former) if (typeof s.former[pid] !== "string") return false;
   for (const t of s.teams) {
-    if (!t || typeof t.id !== "string" || typeof t.name !== "string" || typeof t.color !== "string" || typeof t.avatar !== "string" || typeof t.purse !== "number" || !Array.isArray(t.squad) || typeof t.owner !== "string" || typeof t.rtm !== "number") return false;
+    if (!t || typeof t.id !== "string" || typeof t.name !== "string" || typeof t.color !== "string" || typeof t.avatar !== "string" || typeof t.purse !== "number" || !Array.isArray(t.squad) || typeof t.owner !== "string" || typeof t.rtm !== "number" || typeof t.fr !== "string") return false;
     if (!t.squad.every((e: any) => e && known(e.pid) && typeof e.price === "number")) return false;
   }
   if (!s.queue.every(known) || !s.unsold.every(known) || !s.results.every((r: any) => r && known(r.pid))) return false;

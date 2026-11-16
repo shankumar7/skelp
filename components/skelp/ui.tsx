@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { play } from "@/game/sound";
+import { franchise } from "@/game/engine";
 
 export const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -148,6 +149,21 @@ export function IconBadge({ name, color, size = 44 }: { name: any; color: string
     </View>
   );
 }
+/** A team's round badge: its IPL franchise code on the team colour. */
+export function TeamBadge({ team, size = 34 }: { team: { fr?: string; name: string; color: string; avatar?: string }; size?: number }) {
+  const fr = franchise(team.fr);
+  const code = fr?.code ?? "";
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: team.color, alignItems: "center", justifyContent: "center", boxShadow: `0px 4px 8px ${team.color}55, inset 0px -3px 5px rgba(0, 0, 0, 0.18), inset 0px 3px 5px rgba(255, 255, 255, 0.4)` }}>
+      {fr ? (
+        <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: size * (code.length >= 4 ? 0.26 : code.length === 3 ? 0.31 : 0.38), color: fr.ink, letterSpacing: 0.2 }} allowFontScaling={false}>{code}</Text>
+      ) : (
+        <Ionicons name={(team.avatar ?? "shield") as any} size={size * 0.46} color="#FFF" />
+      )}
+    </View>
+  );
+}
+
 /** Small rounded label. */
 export function Chip({ text, color, soft, icon }: { text: string; color: string; soft?: string; icon?: any }) {
   return (

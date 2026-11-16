@@ -5,7 +5,11 @@ The IPL-style player auction you play with your friends — offline over Wi-Fi o
 > **Have 1.5?** Open Skelp! and it offers this update itself (or use *About → Check for updates*).
 > **Have 1.4 or earlier?** Uninstall the old Skelp! first, then install this one. This is a one-time step.
 
-### New in 1.6
+### New in 1.7
+- **Run a real IPL team.** Everyone picks one of the ten franchises in the lobby, and teams are shown by their name (CSK, MI, RCB…) and colour instead of the player's name.
+- **Players list in the arena.** A new *Players* tab shows every player in the auction: on the block, still to come, sold (to whom and for how much) and unsold.
+
+### From 1.6
 - **Play online.** Host an arena for friends anywhere: choose *Anywhere • Online* when hosting, share the six-character code (or the invite message), and friends type it in the arena code box. The host's phone still runs the auction; Firebase only relays the messages.
 - No account needed for online play — guests work too.
 - Wi-Fi and hotspot play is unchanged and still needs no internet.
@@ -14,7 +18,6 @@ The IPL-style player auction you play with your friends — offline over Wi-Fi o
 - **In-app updates.** Skelp! checks for a new version when it opens (and from *About → Check for updates*), shows what is new, downloads it and opens Android's installer.
 - **Right to Match and retentions.** Optionally give every team a squad from "last season": keep up to three players at fixed prices before the auction, and use RTM cards to take a former player back at the winning bid.
 - **Auctioneer mode.** Put the auction on a tablet or a spare phone as the big screen while everyone bids from their own phone.
-- **Your team, your colours.** Name your team and choose its colour and emblem in the lobby.
 - **Custom player pools.** Indian-only or overseas-only auctions, and up to 20 players of your own.
 - **Undo.** The host can take back the latest bid.
 - **Smarter bots.** Six bidding styles, squads balanced by role, jump bids, and they use retentions and RTM cards.

@@ -7,7 +7,7 @@ import { Player, registerCustom } from "@/game/players";
 import { Archive, deleteArchive } from "@/game/storage";
 import { Squads } from "./Arena";
 import { T, themed } from "./theme";
-import { Backdrop, Card, Chip, Column, confirm, k, Rise, RoundButton, SectionTitle, TopBar } from "./ui";
+import { Backdrop, Card, Chip, Column, confirm, k, Rise, RoundButton, SectionTitle, TopBar, TeamBadge } from "./ui";
 
 const when = (date: number) => {
   const d = new Date(date);
@@ -80,7 +80,7 @@ function Detail({ item, insets, onBack, onDelete }: { item: Archive; insets: any
             {table.map((t, i) => (
               <View key={t.id} style={[st.tableRow, i === table.length - 1 && { borderBottomWidth: 0 }]}>
                 <Text style={[st.rank, i === 0 && { color: T.goldText }]}>{i + 1}</Text>
-                <View style={[st.dot, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={15} color={t.color} /></View>
+                <View style={{ marginRight: 12 }}><TeamBadge team={t} size={34} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={st.team} numberOfLines={1}>{t.name.toUpperCase()}{t.id === item.myId ? " (YOU)" : ""}</Text>
                   <Text style={st.meta}>{t.squad.length} PLAYERS • {formatMoney(t.purse)} LEFT</Text>

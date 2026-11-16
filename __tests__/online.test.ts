@@ -51,13 +51,13 @@ test("players anywhere: look up the code, join, bid, and everyone sees the same 
   const { c: a } = join(store, code, "phone-a", "Aryan");
   const { c: b } = join(store, code, "phone-b", "Anika");
   await until(() => st(host).teams.length === 3 && a.getStatus() === "live" && b.getStatus() === "live", "players to join");
-  expect(st(b).teams.map((t) => t.name)).toEqual(["Shan", "Aryan", "Anika"]);
+  expect(st(b).teams.map((t) => t.owner)).toEqual(["Shan", "Aryan", "Anika"]);
   await until(() => store.read(`arenas/${code}/info`).teams === 3, "public card to update");
 
-  a.setTeam({ name: "Tigers" });
+  a.setTeam("GT");
   host.setConfig({ ...PRESETS.QUICK, timer: 2 });
   a.start(); // players cannot start
-  await until(() => st(b).config.mode === "QUICK" && st(b).teams[1].name === "Tigers", "config and team sync");
+  await until(() => st(b).config.mode === "QUICK" && st(b).teams[1].name === "GT", "config and team sync");
   expect(st(host).phase).toBe("lobby");
   host.start();
   await until(() => st(a).phase === "auction" && st(b).phase === "auction", "auction to start");
