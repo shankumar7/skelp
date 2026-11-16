@@ -1,5 +1,5 @@
-import { BotBrain } from "../game/bots";
-import { Action, bidBlocker, buildQueue, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
+import { BotBrain, personality, roleTargets, valuation } from "../game/bots";
+import { Action, bidBlocker, buildQueue, poolPlayers, retainBlocker, retainPrice, RTM_MS, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
 import { formatMoney, increment } from "../game/money";
 import { getPlayer, PLAYERS } from "../game/players";
 
@@ -205,5 +205,137 @@ describe("full auctions with bots", () => {
   });
   test("host can end early", () => {
     expect(reduce(started(), { type: "end" }).phase).toBe("done");
+  });
+});
+
+describe("1.5 rules", () => {
+  test("teams can be renamed, recoloured and given an emblem in the lobby only", () => {
+    let s = lobby(3);
+    s = reduce(s, { type: "team", id: "t2", name: "  Royal Tigers  ", color: "#E11D48", avatar: "paw" });
+    expect(s.teams[1]).toMatchObject({ name: "Royal Tigers", owner: "Team 2", color: "#E11D48", avatar: "paw" });
+    // a taken name or colour, or an unknown emblem, is refused
+    const same = reduce(s, { type: "team", id: "t3", name: "royal tigers", color: "#E11D48", avatar: "<script>" });
+    expect(same).toBe(s);
+    const live = reduce(s, { type: "start", seed: 1 });
+    expect(reduce(live, { type: "team", id: "t2", name: "Nope" })).toBe(live);
+  });
+
+  test("undo takes back the latest bid and resets the clock", () => {
+    let s = started();
+    const base = s.lot!.bid;
+    s = run(s, { type: "bid", id: "t1", amount: base }, { type: "bid", id: "t2", amount: nextBid({ ...s.lot!, bidder: "t1" }) }, { type: "tick", dt: 4000 });
+    s = reduce(s, { type: "undo" });
+    expect(s.lot).toMatchObject({ bid: base, bidder: "t1", n: 1, remainMs: s.config.timer * 1000 });
+    s = reduce(s, { type: "undo" });
+    expect(s.lot).toMatchObject({ bid: base, bidder: null, n: 0 });
+    expect(reduce(s, { type: "undo" })).toBe(s);
+  });
+
+  test("pool filters and custom players", () => {
+    expect(poolPlayers("INDIAN").every((p) => !p.overseas)).toBe(true);
+    expect(poolPlayers("OVERSEAS").every((p) => p.overseas)).toBe(true);
+    let s = lobby(2);
+    s = reduce(s, { type: "addPlayer", player: { name: "Gully Star", role: "AR", overseas: false, base: 52, rating: 150 } });
+    expect(s.custom[0]).toMatchObject({ id: 10001, name: "Gully Star", base: 50, rating: 99, country: "IND" });
+    expect(reduce(s, { type: "addPlayer", player: { name: " ", role: "AR", overseas: false, base: 50, rating: 80 } })).toBe(s);
+    s = reduce(s, { type: "config", config: { ...PRESETS.QUICK, filter: "INDIAN" } });
+    const live = reduce(s, { type: "start", seed: 3 });
+    expect(live.queue).toContain(10001);
+    expect(live.queue.every((pid) => !getPlayer(pid).overseas)).toBe(true);
+    expect(reduce(s, { type: "removePlayer", pid: 10001 }).custom).toHaveLength(0);
+    // an all-overseas pool lifts the overseas limit
+    let o = reduce(lobby(2), { type: "config", config: { ...PRESETS.QUICK, filter: "OVERSEAS" } });
+    o = reduce(o, { type: "start", seed: 3 });
+    o = { ...o, teams: o.teams.map((t) => ({ ...t, squad: [{ pid: 1, price: 0 }, { pid: 2, price: 0 }, { pid: 3, price: 0 }].filter(() => t.id === "t1") })) };
+    expect(bidBlocker(o, "t1")).not.toBe("Overseas slots full");
+  });
+
+  const withRules = (n: number, retain: number, rtm: number) => run(lobby(n), { type: "config", config: { ...PRESETS.QUICK, retain, rtm } }, { type: "start", seed: 9 });
+
+  test("retentions: teams keep former players at slab prices", () => {
+    let s = withRules(3, 2, 0);
+    expect(s.phase).toBe("retention");
+    const mine = s.offers.t1;
+    expect(mine.length).toBe(4);
+    expect(new Set(Object.values(s.offers).flat()).size).toBe(12);
+    expect(retainBlocker(s, "t1", [mine[0], mine[1], mine[2]])).not.toBeNull();
+    expect(retainBlocker(s, "t1", [s.offers.t2[0]])).toBe("Not your player");
+    s = run(s, { type: "retain", id: "t1", pids: [mine[1], mine[0]] }, { type: "retain", id: "t2", pids: [] });
+    expect(s.phase).toBe("retention");
+    s = reduce(s, { type: "retain", id: "t3", pids: [s.offers.t3[0]] });
+    expect(s.phase).toBe("auction");
+    const t1 = s.teams[0];
+    expect(t1.squad).toEqual([{ pid: mine[0], price: retainPrice(s.config, 0), kept: true }, { pid: mine[1], price: retainPrice(s.config, 1), kept: true }]);
+    expect(t1.purse).toBe(5000 - 750 - 600);
+    expect(s.queue).not.toContain(mine[0]);
+    expect(s.queue).toContain(mine[2]);
+    expect(s.former).toEqual({}); // no RTM cards in this arena
+  });
+
+  test("retention window closes on its own, or when the host skips it", () => {
+    let s = withRules(2, 1, 0);
+    s = reduce(s, { type: "tick", dt: 59000 });
+    expect(s.phase).toBe("retention");
+    s = reduce(s, { type: "tick", dt: 2000 });
+    expect(s.phase).toBe("auction");
+    expect(s.teams.every((t) => t.squad.length === 0)).toBe(true);
+    expect(reduce(withRules(2, 1, 0), { type: "skip" }).phase).toBe("auction");
+  });
+
+  test("right to match: the former team can take the player at the winning bid", () => {
+    let s = withRules(2, 0, 1);
+    expect(s.phase).toBe("auction");
+    // find a lot whose former team is t1, and let t2 win it
+    while (s.former[String(s.lot!.pid)] !== "t1") s = run(s, { type: "pass", id: "t1" }, { type: "pass", id: "t2" }, { type: "tick", dt: 60000 }, { type: "tick", dt: 60000 });
+    const pid = s.lot!.pid;
+    const price = s.lot!.bid;
+    s = run(s, { type: "bid", id: "t2", amount: price }, { type: "pass", id: "t1" });
+    expect(s.lot).toMatchObject({ status: "rtm", rtmTeam: "t1", remainMs: RTM_MS });
+    expect(reduce(s, { type: "rtm", id: "t2", use: true })).toBe(s);
+    const used = reduce(s, { type: "rtm", id: "t1", use: true });
+    expect(used.lot).toMatchObject({ status: "sold", bidder: "t1" });
+    expect(used.teams[0]).toMatchObject({ rtm: 0, purse: 5000 - price, squad: [{ pid, price, rtm: true }] });
+    expect(used.teams[1].squad).toHaveLength(0);
+    const declined = reduce(s, { type: "rtm", id: "t1", use: false });
+    expect(declined.teams[1].squad).toEqual([{ pid, price }]);
+    expect(declined.teams[0].rtm).toBe(1);
+    const timedOut = reduce(s, { type: "tick", dt: RTM_MS + 1 });
+    expect(timedOut.lot).toMatchObject({ status: "sold", bidder: "t2" });
+  });
+
+  test("bots have styles and build balanced squads", () => {
+    expect(personality("bot-1").key).toBe(personality("bot-1").key);
+    expect(roleTargets(11)).toEqual({ WK: 1, AR: 2, BOWL: 4, BAT: 4 });
+    const s = started(2);
+    const keeper = PLAYERS.find((p) => p.role === "WK")!;
+    const empty = s.teams[0];
+    const stacked = { ...empty, squad: PLAYERS.filter((p) => p.role === "WK" && p.id !== keeper.id).slice(0, 3).map((p) => ({ pid: p.id, price: 50 })) };
+    expect(valuation(s, stacked, keeper.id)).toBeLessThan(valuation(s, empty, keeper.id));
+  });
+
+  test.each([[1, 2, 1], [2, 3, 2], [3, 0, 2]])("bot auctions with retentions and RTM finish cleanly (seed %i)", (seed, retain, rtm) => {
+    let s = createState("SIM", "b1");
+    for (let i = 1; i <= 5; i++) s = reduce(s, { type: "join", id: `b${i}`, name: `Bot ${i}`, avatar: "x", isBot: true });
+    s = run(s, { type: "config", config: { ...PRESETS.CLASSIC, retain, rtm } }, { type: "start", seed });
+    expect(s.phase).toBe("auction"); // bots decide retentions instantly
+    const brain = new BotBrain(mulberry32(seed));
+    let guard = 0;
+    while (s.phase === "auction") {
+      if (++guard > 500000) throw new Error("auction did not finish");
+      s = reduce(s, { type: "tick", dt: 200 });
+      for (const a of brain.step(s, 200)) s = reduce(s, a);
+    }
+    for (const t of s.teams) {
+      expect(t.purse).toBeGreaterThanOrEqual(0);
+      expect(t.squad.length).toBeLessThanOrEqual(s.config.squadMax);
+      expect(overseasCount(t)).toBeLessThanOrEqual(s.config.overseasMax);
+      expect(t.rtm).toBeGreaterThanOrEqual(0);
+      expect(5000 * 0 + t.purse + t.squad.reduce((n, e) => n + e.price, 0)).toBe(s.config.purse);
+      const roles = new Set(t.squad.map((e) => getPlayer(e.pid).role));
+      if (t.squad.length >= 11) expect(roles.size).toBeGreaterThanOrEqual(3);
+    }
+    const owned = s.teams.flatMap((t) => t.squad.map((e) => e.pid));
+    expect(new Set(owned).size).toBe(owned.length);
+    if (rtm > 0 && retain === 0) expect(s.teams.some((t) => t.squad.some((e) => e.rtm))).toBe(true);
   });
 });

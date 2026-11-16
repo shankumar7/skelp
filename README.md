@@ -6,8 +6,10 @@
 
 <p align="center"><b>The IPL-style player auction you play with your friends — fully offline.</b></p>
 
+<p align="center"><sub>Affiliated with <a href="https://classcom.tech">ClassCom</a></sub></p>
+
 <p align="center">
-  <a href="https://github.com/shankumar7/skelp/raw/main/release/skelp.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-5B5FEF?style=for-the-badge&logo=android&logoColor=white" alt="Download the Android APK" /></a>
+  <a href="https://github.com/shankumar7/skelp/releases/latest/download/skelp.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-5B5FEF?style=for-the-badge&logo=android&logoColor=white" alt="Download the Android APK" /></a>
 </p>
 
 <p align="center">
@@ -26,11 +28,11 @@ No internet is needed. One phone **hosts** the arena, and everyone on the same W
 to that phone's **mobile hotspot** — joins it directly, phone to phone.
 
 <p align="center">
-  <img src="docs/screenshots/welcome.png" width="19%" alt="Welcome" />
   <img src="docs/screenshots/dashboard.png" width="19%" alt="Dashboard" />
-  <img src="docs/screenshots/pool.png" width="19%" alt="Player pool" />
+  <img src="docs/screenshots/lobby.png" width="19%" alt="Lobby" />
   <img src="docs/screenshots/arena.png" width="19%" alt="Live auction" />
   <img src="docs/screenshots/results.png" width="19%" alt="Results" />
+  <img src="docs/screenshots/dark.png" width="19%" alt="Dark mode" />
 </p>
 
 ## Contents
@@ -47,11 +49,11 @@ to that phone's **mobile hotspot** — joins it directly, phone to phone.
 
 ## Install
 
-1. On your Android phone, tap **[Download the APK](https://github.com/shankumar7/skelp/raw/main/release/skelp.apk)** — the file downloads straight away.
+1. On your Android phone, tap **[Download the APK](https://github.com/shankumar7/skelp/releases/latest/download/skelp.apk)** — the file downloads straight away.
 2. Open the downloaded file and allow *Install unknown apps* when Android asks.
 3. Launch **Skelp!**, create a free account (or continue as a guest) and pick an avatar.
 
-> **Upgrading from 1.2 or earlier?** From 1.3 the app's Android ID is `com.classcom.skelp`, so it installs as a new app. Uninstall the old Skelp! after installing; profiles from the old version were stored only on that phone and do not carry over.
+> **Updating from 1.4 or earlier?** Uninstall the old Skelp! first, then install this one. Since 1.5 the app is signed with its own private key, so Android will not install it over an older copy. You only do this once: from 1.5 on, Skelp! **updates itself** — it tells you when a new version is out, downloads it and opens the installer.
 
 Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
@@ -60,16 +62,22 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | | |
 | --- | --- |
 | 📶 **Offline multiplayer** | One phone is the server; up to 10 teams join over Wi-Fi or hotspot. Auctions never need the internet. |
-| ☁️ **Accounts and backup** | Continue with Google, or sign up with email, to back up your profile and stats and sign in on any phone. Email confirmation and password reset included. Or just play as a guest. |
-| 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Find nearby arenas*, or type the arena code. |
-| 📡 **Hotspot guide** | The app tells you when you are not on Wi-Fi and has one-tap shortcuts to the phone's hotspot and Wi-Fi settings. |
+| 🔎 **Three ways to join** | Scan the host's **QR code**, tap *Nearby*, or type the arena code. |
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
-| 👥 **137 players** | Role, country, base price and rating for each; 85 with a freely-licensed photo. |
-| 🤖 **Bots** | Practise solo against AI bidders, or add bots to fill empty seats. |
+| 🃏 **Right to Match and retentions** | Optional: every team gets a squad from "last season", keeps up to three players at fixed prices, and can match the winning bid on a former player with an RTM card. |
+| 📺 **Auctioneer mode** | Run the auction on a tablet or spare phone as the big screen while everyone bids from their own phone. |
+| 🎨 **Your team** | Name your team and pick its colour and emblem. |
+| 👥 **137 players, or your own** | Role, country, base price and rating for each; 85 with a freely-licensed photo. Play Indian-only or overseas-only pools, and add up to 20 players of your own. |
+| 🤖 **Bots with personality** | Star hunters, bargain hunters, pace lovers… they build balanced squads, jump-bid, retain and use RTM cards. Practise solo or fill empty seats. |
+| ↩️ **Host controls** | Pause, undo the latest bid, or end the auction. |
 | 🔊 **Sound and haptics** | Bid blips, a ticking last five seconds, the gavel on *Sold*, a buzz when you are outbid. One tap to mute. |
 | 🔥 **Live room feel** | Emoji reactions that pop up on every phone, an *Up next* strip and a running *Sold* feed. |
-| 🧭 **Scout the pool** | Browse and search every player by role before the auction. |
-| 🏆 **Results worth sharing** | Final table, costliest buy, steal of the auction and one-tap sharing. |
+| 🏆 **Results worth sharing** | Final table, costliest buy and steal of the auction — shared as a picture or as text. |
+| 🕘 **Auction history** | Every auction you finish is kept on the phone with all its squads. |
+| ☁️ **Accounts and backup** | Continue with Google, or sign up with email, to back up your profile and stats. Or just play as a guest. Change your name and avatar any time. |
+| 🌙 **Dark mode** | The same soft clay look in light and dark. |
+| 📱 **Phones and tablets** | Portrait or landscape; wide screens get a two-column layout. |
+| ⬆️ **In-app updates** | Skelp! checks GitHub for a new release, shows what is new and installs it. |
 | 🔁 **Drop-proof** | A phone that loses Wi-Fi or goes to the background reconnects on its own and keeps its team. |
 
 ## How to play with friends (no internet)
@@ -77,10 +85,10 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 1. **Get everyone on one network.** Join the same Wi-Fi, or one person turns on their
    **mobile hotspot** and the others connect to it. Mobile data can stay off.
    The dashboard has **HOTSPOT** and **WI-FI** buttons that open the right settings page.
-2. **Host:** tap **HOST YOUR OWN ARENA**. The lobby shows a **QR code** and an **arena code**.
-3. **Everyone else:** tap **SCAN QR** and point the camera at the host's screen.
-   Or tap **FIND NEARBY ARENAS** and pick the arena under *Live auctions*, or type the arena code in the search box.
-4. The host picks a mode and the bid clock, optionally adds bots, and taps **START AUCTION**.
+2. **Host:** tap **HOST ARENA** and choose *Play and host* (you own a team too) or *Auctioneer screen* (this device is the big screen). The lobby shows a **QR code** and an **arena code**.
+3. **Everyone else:** tap **SCAN TO JOIN** and point the camera at the host's screen.
+   Or tap **NEARBY** and pick the arena, or type the arena code.
+4. Everyone can name their team and pick a colour. The host picks the mode, bid clock, player pool, retentions and RTM cards, optionally adds bots or players of their own, and taps **START AUCTION**.
 5. Bid, jump-bid or pass on each player. When the clock runs out the player is **SOLD** to the highest bidder.
 6. When every player has been through, the final table ranks the squads.
 
@@ -100,6 +108,9 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 - Every bid resets the clock (10, 15 or 20 seconds). **PASS** takes you out of the current player; if everyone else passes, the hammer falls immediately.
 - You cannot bid more than your purse, beyond your squad size, or for an overseas player once your overseas slots are full.
 - Players nobody bids on go **unsold** and come back once in an accelerated round at the end.
+- **Retentions** (optional): each team is dealt up to four players as "last season's squad" and has 60 seconds to keep up to 1–3 of them. The first costs 15% of the purse, the second 12%, the third 9%.
+- **Right to Match** (optional): when a rival wins one of your former players, you get 8 seconds to use an RTM card and take the player at the winning bid.
+- The host can **undo** the latest bid; the clock restarts.
 - The winner is the team with the highest **squad power** — the total rating of its best eleven players.
 
 ## How it works
@@ -122,13 +133,14 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 
 - **Auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
 - **Accounts are optional.** Guests are stored only on the phone. With an account, the app keeps your username, avatar, stats and last ten auction results in Firebase (Google Cloud), linked to your email address, and syncs them whenever the phone is online. Delete the account at any time from the dashboard; that removes the backed-up data too.
-- **No ads, no analytics, no tracking.**
+- **No ads and no tracking.** If the app crashes, an anonymous crash report (device model, Android version and the error — no name, email or auction data) is sent through Firebase Crashlytics the next time the phone is online.
+- **Updates come from this repository.** The app asks GitHub for the latest release and only ever downloads the APK attached to it; Android then refuses anything that is not signed with the Skelp! release key.
 - **Google sign-in** only shares your name and email address with the app.
 - **Account emails come from Firebase.** Email confirmation and password reset are sent by Firebase Authentication; the app holds no mail-server password.
 - **Each player can only read and write their own data.** See [`firestore.rules`](firestore.rules).
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
 - **Untrusted input is bounded.** Names, avatars and ids from other phones are length-checked and sanitised, oversized messages drop the connection, reactions are rate-limited, and phones ignore malformed data from a host.
-- **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, and the camera — asked for only when you tap *Scan QR*, and used only to read the code. No location, storage, contacts or microphone.
+- **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, installing packages (only to hand a downloaded Skelp! update to Android's installer, which still asks you), and the camera — asked for only when you tap *Scan to join*, and used only to read the code. No location, storage, contacts or microphone.
 - The link between phones in an arena is not encrypted, so play on a network you trust.
 
 ## Development
@@ -158,10 +170,11 @@ Online accounts use the Firebase project in `google-services.json` (`your-fireba
    - SHA-1 `(removed)`
    - SHA-256 `(removed)`
 
-   These belong to the shared React Native debug key the APK is currently signed with. If you move to your own release key, add its fingerprints too.
+   These belong to the Skelp! release key that every APK from 1.5 on is signed with.
 2. **Firestore Database** → *Create database* → production mode, a nearby location (for India, `asia-south1` Mumbai).
 3. **Firestore Database → Rules** → paste [`firestore.rules`](firestore.rules) → *Publish*.
-4. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
+4. **Crashlytics** → *Get started* (crash reports appear after the first crash is reported).
+5. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
 
 Until steps 1 and 2 are done, the app shows "Online accounts are not switched on yet" and players can still play as guests.
 
@@ -173,24 +186,47 @@ Needs Node 20+, JDK 17, and the Android SDK (platform 36, build-tools 36.0.0, ND
 npm run build:apk
 ```
 
-The APK is written to `release/skelp.apk`. Release builds are code-shrunk (R8) and ship 64-bit and 32-bit ARM libraries. The APK is signed with the standard debug key, which is fine for sharing the file directly; publishing on Google Play needs your own signing key.
+The APK is written to `release/skelp.apk`. Release builds are code-shrunk (R8) and ship 64-bit and 32-bit ARM libraries.
+
+**Signing.** Android only installs an update over an app signed with the same key, so every release must be signed with the Skelp! release key. The key is private and is not in this repository. Give the build script its location:
+
+```bash
+SKELP_KEYSTORE=/path/to/skelp-release.jks SKELP_KEYSTORE_PASSWORD=... npm run build:apk
+```
+
+Without it the APK is debug-signed: fine for testing, but it cannot update an installed release.
+
+### Automatic releases
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) publishes a GitHub release whenever the version in `app.json` changes on `main`. With two repository secrets set (**Settings → Secrets and variables → Actions**) it builds the APK from source, signs it and attaches it:
+
+| Secret | Value |
+| --- | --- |
+| `SKELP_KEYSTORE_BASE64` | the release keystore, base64-encoded |
+| `SKELP_KEYSTORE_PASSWORD` | its password |
+
+Without the secrets it publishes the APK committed at `release/skelp.apk`. Either way the workflow refuses to publish an APK that is not signed with the release key.
 
 ### Project layout
 
 ```
-app/                  entry screens (expo-router): splash, welcome, sign in, avatar, about
-components/skelp/     dashboard, lobby, live arena, results, player pool, shared clay UI kit
-game/                 engine, bots, players, sound, local storage
+app/                  entry screens (expo-router): splash, welcome, sign in, avatar
+components/skelp/     dashboard, lobby, retentions, live arena, results, history, about, updates,
+                      theme (light / dark palettes) and the shared clay UI kit
+game/                 engine, bots, players, sound, local storage, updater, crash reporting
 game/net/             TCP transport, protocol, host & client sessions, discovery
 assets/players/       bundled player photos
 assets/sounds/        sound effects (generated by scripts/make-sounds.py)
 scripts/              player data, sound and APK build scripts
-__tests__/            engine and LAN tests
+plugins/              Expo config plugin for the Android build
+__tests__/            engine, LAN, account and updater tests
 ```
 
 ## Credits
 
-- Built by **Pitta Shankumar** — [GitHub](https://github.com/shankumar7)
+- Designed and built by **Pitta Shankumar** — [GitHub](https://github.com/shankumar7) · [LinkedIn](https://www.linkedin.com/in/shankumar7/) · [X](https://x.com/shankumar_7) · [Instagram](https://www.instagram.com/shankumar_7/)
+- Affiliated with [ClassCom](https://classcom.tech)
+- Help and feedback: skelpsupport@gmail.com
 - Player photos are from [Wikimedia Commons](https://commons.wikimedia.org) and are used under their own free licences. Every photo's author and licence is listed in [CREDITS.md](CREDITS.md) and inside the app (*About → Player photos*).
 - Sound effects are synthesised by a script in this repository; no third-party samples are used.
 - Player ratings and base prices are game-design values, not official figures.

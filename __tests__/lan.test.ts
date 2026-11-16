@@ -239,7 +239,7 @@ test("an oversized message without a newline gets the socket dropped", async () 
 });
 
 test("clients ignore malformed states from a broken host", () => {
-  const good = { arena: "A", hostId: "h", phase: "lobby", config: { timer: 10 }, teams: [], queue: [1, 2], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false };
+  const good = { arena: "A", hostId: "h", phase: "lobby", config: { timer: 10 }, teams: [], queue: [1, 2], pos: 0, round: 1, lot: null, unsold: [], results: [], paused: false, custom: [], former: {}, offers: {}, picks: {}, retainMs: 0 };
   expect(looksLikeState(good)).toBe(true);
   expect(looksLikeState(null)).toBe(false);
   expect(looksLikeState({ ...good, teams: "nope" })).toBe(false);
@@ -293,4 +293,54 @@ test("connect falls back to the next variant only when the interface is unavaila
   const t2 = makeTransport({ ...fake, createConnection: (opts: any, cb: any) => { calls.push(opts.interface ?? "plain"); return net.createConnection({ ...opts, interface: undefined }, cb); } }, [{ interface: "wifi" }, {}]);
   await expect(t2.connect("127.0.0.1", 1, 800)).rejects.toBeTruthy();
   expect(calls).toEqual(["wifi"]);
+});
+
+test("team identity, custom players, retentions and RTM travel over the network", async () => {
+  const host = await hostArena();
+  const a = join(host, "phone-a", "Aryan");
+  await until(() => st(host).teams.length === 2 && a.getStatus() === "live", "client to join");
+  a.setTeam({ name: "Royal Tigers", color: "#E11D48", avatar: "paw" });
+  await until(() => st(host).teams[1].name === "Royal Tigers", "team rename");
+  expect(st(host).teams[1]).toMatchObject({ owner: "Aryan", color: "#E11D48", avatar: "paw" });
+  a.addPlayer({ name: "Cheat", role: "BAT", overseas: false, base: 20, rating: 99 }); // host only
+  host.addPlayer({ name: "Gully Star", role: "AR", overseas: false, base: 50, rating: 80 });
+  await until(() => st(a).custom.length === 1, "custom player sync");
+  expect(st(a).custom[0]).toMatchObject({ name: "Gully Star", id: 10001 });
+  expect(getPlayer(10001).name).toBe("Gully Star");
+
+  host.setConfig({ ...PRESETS.QUICK, retain: 1, rtm: 1 });
+  host.start();
+  await until(() => st(a).phase === "retention", "retention phase");
+  const mine = st(a).offers["phone-a"];
+  expect(mine.length).toBeGreaterThan(0);
+  a.retain([mine[0]]);
+  host.retain([]);
+  await until(() => st(a).phase === "auction", "auction to start");
+  const team = st(a).teams[1];
+  expect(team.squad).toEqual([{ pid: mine[0], price: 750, kept: true }]);
+  expect(team.purse).toBe(PRESETS.QUICK.purse - 750);
+  expect(st(a).queue).not.toContain(mine[0]);
+  expect(st(a).teams.every((t) => t.rtm === 1)).toBe(true);
+});
+
+test("auctioneer mode: the host has no team and clients do the bidding", async () => {
+  const host = new HostSession({ id: "host", name: "Shan", avatar: "trophy" }, "BIG SCREEN", Math.random, true);
+  await host.serve(transport, 0);
+  open.push(host);
+  expect(st(host).teams).toHaveLength(0);
+  const a = join(host, "phone-a", "Aryan");
+  const b = join(host, "phone-b", "Anika");
+  await until(() => st(host).teams.length === 2, "clients to join");
+  host.setConfig(PRESETS.QUICK);
+  host.start();
+  await until(() => st(a)?.phase === "auction" && st(b)?.phase === "auction", "auction to start");
+  host.bid(st(host).lot!.bid); // no team: ignored
+  expect(st(host).lot!.bidder).toBeNull();
+  a.bid(st(a).lot!.bid);
+  await until(() => st(host).lot!.bidder === "phone-a", "client bid");
+  b.bid(st(b).lot!.bid + 50);
+  await until(() => st(host).lot!.bidder === "phone-b", "second bid");
+  host.undo();
+  await until(() => st(a).lot!.bidder === "phone-a", "undo to reach clients");
+  expect(st(a).lot!.history).toHaveLength(1);
 });

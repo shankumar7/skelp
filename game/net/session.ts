@@ -7,7 +7,7 @@
  */
 import { BOT_AVATARS, BOT_NAMES, BotBrain } from "../bots";
 import { Action, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
-import { PLAYERS } from "../players";
+import { CUSTOM_ID, MAX_CUSTOM, PLAYERS, registerCustom, Role } from "../players";
 import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, REACTIONS, ServerMsg } from "./protocol";
 import { Listener, Sock, Transport } from "./transport";
 
@@ -32,7 +32,17 @@ export interface Session {
   /** be told about every reaction (yours included); returns an unsubscribe function */
   onReaction(cb: (teamId: string, emoji: string) => void): () => void;
   leave(): void;
+  /** rename / recolour / change the emblem of your own team (lobby only) */
+  setTeam(change: { name?: string; color?: string; avatar?: string }): void;
+  /** choose the players to keep before the auction */
+  retain(pids: number[]): void;
+  /** answer a Right to Match offer */
+  rtm(use: boolean): void;
   // host-only controls (no-ops on clients)
+  undo(): void;
+  skipRetention(): void;
+  addPlayer(p: { name: string; role: Role; overseas: boolean; base: number; rating: number }): void;
+  removePlayer(pid: number): void;
   setConfig(c: Config): void;
   addBot(): void;
   kick(id: string): void;
@@ -84,11 +94,13 @@ export class HostSession extends Base implements Session {
   private lastTick = Date.now();
   private botSeq = 0;
 
-  constructor(me: Me, arena: string, private rnd: () => number = Math.random) {
+  /** `auctioneer`: the host runs the room from a shared screen and does not own a team. */
+  constructor(me: Me, arena: string, private rnd: () => number = Math.random, readonly auctioneer = false) {
     super();
     this.myId = me.id;
     this.brain = new BotBrain(rnd);
-    this.state = reduce(createState(arena, me.id), { type: "join", id: me.id, name: me.name, avatar: me.avatar });
+    this.state = createState(arena, me.id);
+    if (!auctioneer) this.state = reduce(this.state, { type: "join", id: me.id, name: me.name, avatar: me.avatar });
     this.timer = setInterval(() => this.onTick(), TICK_MS);
   }
 
@@ -117,6 +129,13 @@ export class HostSession extends Base implements Session {
     this.lastTick = now;
     // drop phones that went silent (walked out of Wi-Fi range, app killed, ...)
     for (const [sock, peer] of this.peers) if (now - peer.seen > DEAD_AFTER_MS) sock.close();
+    if (this.state.phase === "retention") {
+      const was = this.state;
+      this.apply({ type: "tick", dt }, false);
+      this.sinceSync += dt;
+      if (this.state.phase !== was.phase || this.sinceSync >= 1000) { this.sinceSync = 0; this.broadcast(); this.emit(); }
+      return;
+    }
     if (this.state.phase !== "auction") return;
     const before = this.state;
     this.apply({ type: "tick", dt }, false);
@@ -127,7 +146,7 @@ export class HostSession extends Base implements Session {
       if (winner?.isBot && this.rnd() < 0.6) this.spread(winner.id, s.lot.bid >= 800 ? "💸" : "🔥");
     }
     const changed = s.lot?.pid !== before.lot?.pid || s.lot?.status !== before.lot?.status || s.lot?.bid !== before.lot?.bid ||
-      s.lot?.bidder !== before.lot?.bidder || s.lot?.passed.length !== before.lot?.passed.length || s.phase !== before.phase;
+      s.lot?.bidder !== before.lot?.bidder || s.lot?.passed.length !== before.lot?.passed.length || s.lot?.n !== before.lot?.n || s.phase !== before.phase;
     this.sinceSync += dt;
     if (changed || this.sinceSync >= 1000) {
       this.sinceSync = 0;
@@ -177,6 +196,9 @@ export class HostSession extends Base implements Session {
         const a = m.a;
         if (a && a.type === "bid" && typeof a.amount === "number") this.apply({ type: "bid", id: peer.id, amount: a.amount });
         else if (a && a.type === "pass") this.apply({ type: "pass", id: peer.id });
+        else if (a && a.type === "team") this.apply({ type: "team", id: peer.id, name: typeof a.name === "string" ? a.name.slice(0, 40) : undefined, color: typeof a.color === "string" ? a.color : undefined, avatar: typeof a.avatar === "string" ? a.avatar : undefined });
+        else if (a && a.type === "retain" && Array.isArray(a.pids) && a.pids.length <= 5 && a.pids.every((p: any) => Number.isInteger(p))) this.apply({ type: "retain", id: peer.id, pids: a.pids });
+        else if (a && a.type === "rtm") this.apply({ type: "rtm", id: peer.id, use: a.use === true });
       }
     });
     sock.onClose(() => {
@@ -208,6 +230,13 @@ export class HostSession extends Base implements Session {
   }
   bid(amount: number) { this.apply({ type: "bid", id: this.myId, amount }); }
   pass() { this.apply({ type: "pass", id: this.myId }); }
+  setTeam(change: { name?: string; color?: string; avatar?: string }) { this.apply({ type: "team", id: this.myId, ...change }); }
+  retain(pids: number[]) { this.apply({ type: "retain", id: this.myId, pids }); }
+  rtm(use: boolean) { this.apply({ type: "rtm", id: this.myId, use }); }
+  undo() { this.apply({ type: "undo" }); }
+  skipRetention() { this.apply({ type: "skip" }); }
+  addPlayer(p: { name: string; role: Role; overseas: boolean; base: number; rating: number }) { this.apply({ type: "addPlayer", player: p }); }
+  removePlayer(pid: number) { this.apply({ type: "removePlayer", pid }); }
   setConfig(c: Config) { this.apply({ type: "config", config: c }); }
   addBot() {
     const used = new Set(this.state.teams.map((t) => t.name));
@@ -280,6 +309,7 @@ export class ClientSession extends Base implements Session {
     this.lastSeen = Date.now();
     if (m.t === "state") {
       if (!looksLikeState(m.s)) return; // never render something malformed from the network
+      if (m.s.custom.length) registerCustom(m.s.custom);
       this.state = m.s;
       this.status = "live";
       this.emit();
@@ -333,6 +363,13 @@ export class ClientSession extends Base implements Session {
   bid(amount: number) { this.send({ type: "bid", id: this.myId, amount }); }
   pass() { this.send({ type: "pass", id: this.myId }); }
   react(emoji: string) { this.sock?.write(encode({ t: "react", e: emoji })); }
+  setTeam(change: { name?: string; color?: string; avatar?: string }) { this.send({ type: "team", id: this.myId, ...change }); }
+  retain(pids: number[]) { this.send({ type: "retain", id: this.myId, pids }); }
+  rtm(use: boolean) { this.send({ type: "rtm", id: this.myId, use }); }
+  undo() {}
+  skipRetention() {}
+  addPlayer(_p?: unknown) {}
+  removePlayer(_pid?: number) {}
   setConfig() {}
   addBot() {}
   kick() {}
@@ -356,17 +393,28 @@ export class ClientSession extends Base implements Session {
 /** Cheap structural check on a state received from a host, so a broken or hostile host cannot crash the app. */
 export function looksLikeState(s: any): s is State {
   if (!s || typeof s !== "object" || typeof s.arena !== "string" || typeof s.hostId !== "string") return false;
-  if (!["lobby", "auction", "done"].includes(s.phase) || !s.config || typeof s.config.timer !== "number") return false;
+  if (!["lobby", "retention", "auction", "done"].includes(s.phase) || !s.config || typeof s.config.timer !== "number") return false;
+  if (!Array.isArray(s.custom) || s.custom.length > MAX_CUSTOM || typeof s.retainMs !== "number") return false;
+  const customIds = new Set<number>();
+  for (const p of s.custom) {
+    if (!p || !Number.isInteger(p.id) || p.id < CUSTOM_ID || typeof p.name !== "string" || p.name.length > 40 || !["BAT", "BOWL", "AR", "WK"].includes(p.role)) return false;
+    if (typeof p.base !== "number" || typeof p.rating !== "number" || typeof p.overseas !== "boolean" || typeof p.country !== "string") return false;
+    customIds.add(p.id);
+  }
+  for (const key of ["former", "offers", "picks"]) if (!s[key] || typeof s[key] !== "object" || Array.isArray(s[key])) return false;
   if (!Array.isArray(s.teams) || s.teams.length > MAX_TEAMS || !Array.isArray(s.queue) || !Array.isArray(s.results) || !Array.isArray(s.unsold)) return false;
-  const known = (pid: any) => Number.isInteger(pid) && pid >= 1 && pid <= PLAYERS.length;
+  const known = (pid: any) => Number.isInteger(pid) && ((pid >= 1 && pid <= PLAYERS.length) || customIds.has(pid));
+  for (const id in s.offers) if (!Array.isArray(s.offers[id]) || !s.offers[id].every(known)) return false;
+  for (const id in s.picks) if (!Array.isArray(s.picks[id]) || !s.picks[id].every(known)) return false;
+  for (const pid in s.former) if (typeof s.former[pid] !== "string") return false;
   for (const t of s.teams) {
-    if (!t || typeof t.id !== "string" || typeof t.name !== "string" || typeof t.color !== "string" || typeof t.avatar !== "string" || typeof t.purse !== "number" || !Array.isArray(t.squad)) return false;
+    if (!t || typeof t.id !== "string" || typeof t.name !== "string" || typeof t.color !== "string" || typeof t.avatar !== "string" || typeof t.purse !== "number" || !Array.isArray(t.squad) || typeof t.owner !== "string" || typeof t.rtm !== "number") return false;
     if (!t.squad.every((e: any) => e && known(e.pid) && typeof e.price === "number")) return false;
   }
   if (!s.queue.every(known) || !s.unsold.every(known) || !s.results.every((r: any) => r && known(r.pid))) return false;
   if (s.lot !== null) {
     const l = s.lot;
-    if (!l || !known(l.pid) || typeof l.bid !== "number" || typeof l.remainMs !== "number" || !Array.isArray(l.passed) || !Array.isArray(l.history) || !["open", "sold", "unsold"].includes(l.status)) return false;
+    if (!l || !known(l.pid) || typeof l.bid !== "number" || typeof l.remainMs !== "number" || !Array.isArray(l.passed) || !Array.isArray(l.history) || !["open", "rtm", "sold", "unsold"].includes(l.status)) return false;
   }
   return true;
 }

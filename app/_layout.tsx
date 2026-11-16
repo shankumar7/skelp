@@ -1,6 +1,5 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { CrashScreen } from '@/components/skelp/CrashScreen';
@@ -15,9 +14,8 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={DefaultTheme}>
         <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
         </Stack>
-        <StatusBar style="dark" />
       </ThemeProvider>
     </SafeAreaProvider>
   );

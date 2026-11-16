@@ -2,11 +2,11 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.4.0",
-    "orientation": "portrait",
+    "version": "1.5.0",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -22,9 +22,10 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE"
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
-      "versionCode": 6,
+      "versionCode": 7,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -90,7 +91,9 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
-      "@react-native-google-signin/google-signin"
+      "@react-native-firebase/crashlytics",
+      "@react-native-google-signin/google-signin",
+      "./plugins/withSkelpAndroid"
     ],
     "updates": {
       "enabled": false,

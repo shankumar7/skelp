@@ -1,3 +1,4 @@
+import { T, themed } from "@/components/skelp/theme";
 import {
   View,
   Text,
@@ -11,6 +12,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Appearance,
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,13 +36,17 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { s, SCREEN_H, SCREEN_W, EnhancedBackground, FormBackground, AnimatedPressable } from "@/components/skelp/ui";
 import { ArenaFlow } from "@/components/skelp/ArenaFlow";
+import { About, Affiliation } from "@/components/skelp/About";
+import { History } from "@/components/skelp/History";
+import { getTheme, setTheme, ThemeName } from "@/components/skelp/theme";
+import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { Dashboard } from "@/components/skelp/Dashboard";
 import { PlayerPool } from "@/components/skelp/PlayerPool";
 import { Session } from "@/game/net/session";
 import { setSoundOn } from "@/game/sound";
-import { load, newId, Profile, recordAuction, setSignedIn, signInGuest, signOut, Stats, updateProfile } from "@/game/storage";
+import { Archive, load, newId, Profile, recordAuction, saveArchive, saveTheme, setSignedIn, signInGuest, signOut, Stats, updateProfile } from "@/game/storage";
 import * as cloud from "@/game/cloud";
-import CREDITS from "@/game/data/credits.json";
 
 function BootSplash({ insets, ready, onDone }: any) {
   const logoOp = useRef(new Animated.Value(0)).current;
@@ -67,151 +73,23 @@ function BootSplash({ insets, ready, onDone }: any) {
     <Animated.View style={[s.screen, s.center, { opacity: fadeOut, position: "absolute", width: "100%", height: "100%", zIndex: 999 }]}>
       <EnhancedBackground />
       <View style={s.auraContainer}><Animated.View style={[s.impactRing, { opacity: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }), transform: [{ scale: impactRing.interpolate({ inputRange: [0, 1], outputRange: [0.5, 4] }) }] }]} /><Animated.View style={[s.auraRing, { transform: [{ rotateZ: orbit1.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }, { scaleX: 1.1 }, { scaleY: 0.4 }] }]} /><Animated.View style={[s.auraRing, { borderColor: "rgba(91, 95, 239, 0.4)", transform: [{ rotateZ: orbit2.interpolate({ inputRange: [0, 1], outputRange: ["360deg", "0deg"] }) }, { scaleX: 0.5 }, { scaleY: 1.1 }] }]} /><Animated.View style={[s.claySplashLogo, { transform: [{ scale: logoScale }, { translateY: logoFloat }] }]}><Image source={require("../assets/images/circlelogo.png")} style={s.splashHeroLogo} resizeMode="contain" /></Animated.View></View>
-      <Animated.View style={[s.splashStatusBox, { opacity: logoOp }]}><Text style={s.splashBrandName}>SKELP!</Text><Text style={s.splashTagline}>THE ULTIMATE ARENA</Text><View style={s.miniLoader}><ActivityIndicator size="small" color="#5B5FEF" /></View></Animated.View>
+      <Animated.View style={[s.splashStatusBox, { opacity: logoOp }]}><Text style={s.splashBrandName}>SKELP!</Text><Text style={s.splashTagline}>THE ULTIMATE ARENA</Text><View style={s.miniLoader}><ActivityIndicator size="small" color={T.primaryText} /></View><View style={{ marginTop: 22 }}><Affiliation /></View></Animated.View>
     </Animated.View>
-  );
-}
-
-function AboutSkelp({ onBack, insets, fromCorner }: { onBack: () => void; insets: any; fromCorner?: boolean }) {
-  const spreadScale = useRef(new Animated.Value(0)).current;
-  const contentFade = useRef(new Animated.Value(0)).current;
-  const itemSlide = [
-    useRef(new Animated.Value(40)).current,
-    useRef(new Animated.Value(40)).current,
-    useRef(new Animated.Value(40)).current,
-    useRef(new Animated.Value(40)).current,
-  ];
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(spreadScale, {
-        toValue: 1,
-        duration: 1600, // Slower for visibility
-        easing: Easing.out(Easing.exp),
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.timing(contentFade, { toValue: 1, duration: 1000, useNativeDriver: true }),
-        Animated.stagger(200, itemSlide.map(v => 
-          Animated.spring(v, { toValue: 0, tension: 15, friction: 8, useNativeDriver: true })
-        ))
-      ])
-    ]).start();
-  }, []);
-
-  const [showCredits, setShowCredits] = useState(false);
-  const openLink = (url: string) => Linking.openURL(url).catch(() => {});
-
-  const circlePos: any = fromCorner 
-    ? { top: insets.top + (SCREEN_H < 800 ? 12 : 28), right: 54 } 
-    : { top: SCREEN_H / 2 - 50, left: SCREEN_W / 2 - 50 };
-
-  return (
-    <View style={s.aboutScreen}>
-      {/* Animated Circle Spread */}
-      <Animated.View 
-        style={[
-          s.aboutSpreadCircle, 
-          circlePos,
-          { 
-            transform: [
-              { scale: spreadScale.interpolate({ inputRange: [0, 1], outputRange: [0, 30] }) }
-            ] 
-          }
-        ]} 
-      />
-      
-      <Animated.View style={[s.flex1, { opacity: contentFade, zIndex: 1 }]}>
-        {/* Navigation Bar / Header */}
-        <View style={[s.aboutHeader, { paddingTop: insets.top + 10 }]}>
-          <Pressable onPress={onBack} style={s.aboutHeaderBackBtn}>
-            <Ionicons name="arrow-back" size={24} color="#2A2545" />
-          </Pressable>
-          <View style={{ width: 44 }} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={[s.aboutScrollContent, { paddingBottom: insets.bottom + 40 }]}
-          showsVerticalScrollIndicator={false}
-          bounces={true}
-        >
-          {/* Main Hero Section */}
-          <Animated.View style={[s.aboutHero, { transform: [{ translateY: itemSlide[0] }] }]}>
-            <View style={s.aboutLogoRing}>
-              <Image source={require("../assets/images/circlelogo.png")} style={s.aboutLogoFull} resizeMode="contain" />
-            </View>
-            <Text style={s.aboutHeroTitle}>SKELP!</Text>
-            <View style={s.aboutStatusRow}>
-              <View style={[s.aboutStatusPill, { backgroundColor: '#E3E1FF' }]}><Text style={[s.aboutStatusText, { color: '#4A3FC4' }]}>V1.4</Text></View>
-            </View>
-          </Animated.View>
-
-          {/* Description Section */}
-          <Animated.View style={[s.aboutInfoCard, { transform: [{ translateY: itemSlide[1] }] }]}>
-            <Text style={s.aboutInfoHeadline}>ULTIMATE IPL AUCTION ARENA</Text>
-            <Text style={s.aboutInfoBody}>
-              Skelp! is the IPL-style player auction you play with your friends: everyone gets the same purse, players come under the hammer one by one, and the highest bid wins.
-              {"\n\n"}
-              Auctions run fully offline: one phone hosts the arena and everyone on the same Wi-Fi or mobile hotspot joins it, phone to phone. Create a free account to back up your stats and sign in on any phone, or simply play as a guest.
-            </Text>
-          </Animated.View>
-
-          {/* Developer Section */}
-          <Animated.View style={[s.aboutDevCard, { transform: [{ translateY: itemSlide[2] }] }]}>
-            <Text style={s.aboutDevLabel}>CRAFTED BY</Text>
-
-            <Text style={s.aboutDevNameHero} numberOfLines={1} adjustsFontSizeToFit={true}>PITTA SHANKUMAR</Text>
-
-            <View style={s.aboutSocialRowSingle}>
-              {[
-                { n: "logo-github", c: "#3B3560", l: "https://github.com/shankumar7" },
-                { n: "logo-linkedin", c: "#0077B5", l: "https://www.linkedin.com/in/shankumar7/" },
-                { n: "mail", c: "#FF6B6B", l: "mailto:skelpsupport@gmail.com" },
-                { n: "logo-twitter", c: "#000", l: "https://x.com/shankumar_7" },
-                { n: "logo-instagram", c: "#E4405F", l: "https://www.instagram.com/shankumar_7/" }
-              ].map((scl, i) => (
-                <Pressable key={i} onPress={() => openLink(scl.l)} style={s.aboutSocialIconHero}>
-                  <Ionicons name={scl.n as any} size={18} color={scl.c} />
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={s.aboutDevBioHero}>Friendly Neighbourhood Developer</Text>
-          </Animated.View>
-
-          {/* Photo credits */}
-          <Animated.View style={[s.aboutInfoCard, { marginTop: 20, marginBottom: 0, transform: [{ translateY: itemSlide[3] }] }]}>
-            <Text style={s.aboutInfoHeadline}>PLAYER PHOTOS</Text>
-            <Text style={[s.aboutInfoBody, { fontSize: 13, lineHeight: 20 }]}>
-              Player photos come from Wikimedia Commons and are used under their free licences (Creative Commons / public domain). Skelp! is a fan-made game and is not affiliated with the IPL, the BCCI or any franchise.
-            </Text>
-            <Pressable onPress={() => setShowCredits(!showCredits)} style={{ marginTop: 14 }}>
-              <Text style={[s.dashViewAll, { letterSpacing: 1 }]}>{showCredits ? "HIDE" : "SHOW"} {CREDITS.length} PHOTO CREDITS</Text>
-            </Pressable>
-            {showCredits && (CREDITS as { name: string; artist: string; license: string }[]).map((c) => (
-              <Text key={c.name} style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#7A748F", marginTop: 8, lineHeight: 16 }}>
-                <Text style={{ color: "#2A2545", fontFamily: "Inter_700Bold" }}>{c.name}</Text> — {c.artist} ({c.license})
-              </Text>
-            ))}
-          </Animated.View>
-        </ScrollView>
-      </Animated.View>
-    </View>
   );
 }
 
 function AvatarSelectionScreen({ insets, onSelect, name, busy }: any) {
   const avatars = [
-    { n: "shield-checkmark", c: "#5B5FEF", t: "GUARDIAN" },
+    { n: "shield-checkmark", c: T.primaryText, t: "GUARDIAN" },
     { n: "flash", c: "#10B981", t: "SPEED" },
     { n: "trophy", c: "#F5A623", t: "CHAMP" },
     { n: "rocket", c: "#FFB238", t: "MOONER" },
-    { n: "skull", c: "#5A5478", t: "FINISH" },
+    { n: "skull", c: T.sub, t: "FINISH" },
     { n: "heart", c: "#FF6B6B", t: "FAVE" },
     { n: "planet", c: "#EC4899", t: "PLANET" },
     { n: "construct", c: "#0EA5E9", t: "ARCHI" },
     { n: "thunderstorm", c: "#6366F1", t: "STORM" },
-    { n: "eye", c: "#3B3560", t: "ANALYST" }
+    { n: "eye", c: T.ink2, t: "ANALYST" }
   ];
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fade = useRef(new Animated.Value(0)).current;
@@ -226,7 +104,7 @@ function AvatarSelectionScreen({ insets, onSelect, name, busy }: any) {
           const isSel = selectedIdx === idx;
           return (
             <Pressable key={idx} onPress={() => setSelectedIdx(idx)} style={[s.avatarItem, isSel && s.avatarItemOn]}>
-              <View style={[s.avatarIconCircle, { backgroundColor: "#FFF", borderColor: isSel ? av.c : av.c + "40", borderWidth: isSel ? 2 : 1 }]}><Ionicons name={av.n as any} size={28} color={av.c} /></View>
+              <View style={[s.avatarIconCircle, { backgroundColor: T.card, borderColor: isSel ? av.c : av.c + "40", borderWidth: isSel ? 2 : 1 }]}><Ionicons name={av.n as any} size={28} color={av.c} /></View>
               <Text style={[s.avatarMiniTag, { color: av.c }, isSel && { fontFamily: 'Inter_800ExtraBold' }]}>{isSel ? "READY" : av.t}</Text>
             </Pressable>
           );
@@ -261,7 +139,7 @@ function AuthenticatingScreen({ onFinish, name }: { onFinish: () => void; name: 
       <FormBackground />
       <View style={s.authGreetingBox}><Text style={s.authGreetingTitle}>HELLO,</Text><Text style={s.authGreetingName}>{name || "PLAYER"}</Text></View>
       <View style={s.clayProgressContainer}><View style={s.clayProgressPocket}><Animated.View style={[s.clayProgressBar, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]} /></View><Text style={s.clayPercentText}>{percent}%</Text></View>
-      <Animated.View style={[s.authStatusWrapper, { opacity: statusPulse }]}><Text style={[s.authStatusTextUnified, { color: "#A39DB5" }]}>GET READY TO OUTBID!</Text></Animated.View>
+      <Animated.View style={[s.authStatusWrapper, { opacity: statusPulse }]}><Text style={[s.authStatusTextUnified, { color: T.dim }]}>GET READY TO OUTBID!</Text></Animated.View>
     </Animated.View>
   );
 }
@@ -289,14 +167,44 @@ function WelcomeGreeting({ onLogin, onSignUp, onGuest, insets, onAbout }: any) {
             <Animated.View style={[s.glintBar, { transform: [{ translateX: glint.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] }) }] }]} />
           </Animated.View>
         </Pressable>
-        <Animated.View style={[s.welcomeTitleWrapper, { opacity: titleOp, transform: [{ translateY: titleSlide }] }]}><Text style={s.welcomeTitle}>SKELP!</Text><Text style={s.welcomeWelcome}>WELCOME TO THE ARENA</Text></Animated.View>
+        <Animated.View style={[s.welcomeTitleWrapper, { opacity: titleOp, transform: [{ translateY: titleSlide }] }]}><Text style={s.welcomeTitle}>SKELP!</Text><Text style={s.welcomeWelcome}>WELCOME TO THE ARENA</Text><View style={{ marginTop: 18 }}><Affiliation /></View></Animated.View>
       </View>
       <Animated.View style={[s.welcomeActions, { opacity: btnOp }]}><Animated.View style={{ transform: [{ translateY: btnY[0] }] }}><AnimatedPressable style={s.premiumClayBtn} onPress={onLogin}><View style={s.clayBtnContent}><Text style={s.clayBtnTitle}>DO YOU KNOW US?</Text></View></AnimatedPressable></Animated.View><Animated.View style={{ transform: [{ translateY: btnY[1] }] }}><AnimatedPressable style={s.premiumClayBtnSec} onPress={onSignUp}><View style={s.clayBtnContent}><Text style={s.clayBtnSecondaryTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.7}>WANT TO GET ACQUAINTED?</Text></View></AnimatedPressable></Animated.View><Animated.View style={{ transform: [{ translateY: btnY[2] }] }}><AnimatedPressable style={s.clayBtnGuest} onPress={onGuest}><Text style={s.clayBtnGuestText}>OR CONTINUE AS A GUEST</Text></AnimatedPressable></Animated.View></Animated.View>
     </View>
   );
 }
 
+// the splash plays once per launch, not again when the theme is switched
+let booted = false;
+
+/** Loads the saved theme, then shows the app; switching theme remounts every screen with the new palette. */
 export default function HomeScreen() {
+  const [theme, setThemeState] = useState<ThemeName | null>(null);
+  useEffect(() => {
+    load().then((d) => {
+      const fromUrl = Platform.OS === "web" && typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
+      const next: ThemeName = fromUrl === "dark" || fromUrl === "light" ? fromUrl : d.theme ?? (Appearance.getColorScheme() === "dark" ? "dark" : "light");
+      setTheme(next);
+      setThemeState(next);
+    });
+  }, []);
+  useEffect(() => { if (theme) SystemUI.setBackgroundColorAsync(T.bg).catch(() => {}); }, [theme]);
+  if (!theme) return <View style={{ flex: 1, backgroundColor: "#FAF7F2" }} />;
+  const toggle = () => {
+    const next: ThemeName = getTheme() === "dark" ? "light" : "dark";
+    setTheme(next);
+    saveTheme(next);
+    setThemeState(next);
+  };
+  return (
+    <>
+      <StatusBar style={theme === "dark" ? "light" : "dark"} />
+      <Home key={theme} onTheme={toggle} />
+    </>
+  );
+}
+
+function Home({ onTheme }: { onTheme: () => void }) {
   const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({ LuckiestGuy_400Regular, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
   const [stored, setStored] = useState(false);
@@ -317,15 +225,16 @@ export default function HomeScreen() {
   const [busy, setBusy] = useState(false);
   /** a Google account signing in for the first time picks an avatar before entering */
   const [googleSignup, setGoogleSignup] = useState<{ uid: string; email: string } | null>(null);
-  const [bootDone, setBootDone] = useState(false);
+  const [bootDone, setBootDone] = useState(booted);
+  const [archive, setArchive] = useState<Archive[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
-  const [aboutFromCorner, setAboutFromCorner] = useState(false);
   const [showPool, setShowPool] = useState(false);
 
   // the app runs from the copy on this phone; signed-in players also sync to Firebase
-  useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setStored(true); }); }, []);
+  useEffect(() => { load().then((d) => { setSoundOn(d.sound !== false); setProfile(d.current); setStats(d.stats); setArchive(d.archive); setStored(true); }); }, []);
 
-  if (!fontsLoaded || !stored || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded && stored} onDone={() => setBootDone(true)} />;
+  if (!fontsLoaded || !stored || !bootDone) return <BootSplash insets={insets} ready={fontsLoaded && stored} onDone={() => { booted = true; setBootDone(true); }} />;
 
   const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const handleAuth = async () => {
@@ -424,17 +333,18 @@ export default function HomeScreen() {
   const startSignUp = async () => { await logout(); setIsLogin(false); setShowGreeting(false); };
   const onProfile = async (changes: Partial<Profile>) => { const p = await updateProfile(changes); if (p) setProfile(p); };
 
-  if (showAbout) return <AboutSkelp onBack={() => setShowAbout(false)} insets={insets} fromCorner={aboutFromCorner} />;
+  if (showAbout) return <About onBack={() => setShowAbout(false)} insets={insets} />;
   if (isSelectingAvatar) return <AvatarSelectionScreen insets={insets} onSelect={onAvatar} name={displayName} busy={busy} />;
   if (isAuthenticating) return <AuthenticatingScreen onFinish={onAuthDone} name={pending?.name ?? displayName} />;
 
   if (profile) {
-    if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={() => setSession(null)} onFinished={(item) => { recordAuction(item).then(setStats); }} />;
+    if (session) return <ArenaFlow key={session.myId + session.isHost} session={session} insets={insets} onExit={() => setSession(null)} onFinished={(item, full) => { if (item) recordAuction(item).then(setStats); saveArchive(full).then(setArchive); }} />;
+    if (showHistory) return <History archive={archive} insets={insets} onBack={() => setShowHistory(false)} onChange={setArchive} />;
     if (showPool) return <PlayerPool insets={insets} onBack={() => setShowPool(false)} />;
-    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} />;
+    return <Dashboard profile={profile} stats={stats} insets={insets} onLogout={logout} onEnter={setSession} onPool={() => setShowPool(true)} onProfile={onProfile} onCreateAccount={startSignUp} onAbout={() => setShowAbout(true)} onHistory={() => setShowHistory(true)} onTheme={onTheme} />;
   }
-  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setAboutFromCorner(false); setShowAbout(true); }} />;
-  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} onGoogle={signInGoogle} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setAboutFromCorner(true); setShowAbout(true); }} />;
+  if (showGreeting) return <WelcomeGreeting insets={insets} onLogin={() => { setIsLogin(true); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onSignUp={() => { setIsLogin(false); setAuthError(""); setAuthNotice(""); setShowGreeting(false); }} onGuest={() => { setIsGuest(true); setDisplayName("Guest" + Math.floor(100 + Math.random() * 899)); setIsSelectingAvatar(true); }} onAbout={() => { setShowAbout(true); }} />;
+  return <LoginScreen isLogin={isLogin} setIsLogin={(v: boolean) => { setIsLogin(v); setAuthError(""); setAuthNotice(""); }} handleAuth={handleAuth} authError={authError} authNotice={authNotice} busy={busy} onForgot={forgotPassword} onGoogle={signInGoogle} insets={insets} password={password} setPassword={setPassword} displayName={displayName} setDisplayName={setDisplayName} email={email} setEmail={setEmail} onBack={() => setShowGreeting(true)} onAbout={() => { setShowAbout(true); }} />;
 }
 
 function Field({ label, value, onChange, placeholder, focused, onFocus, onBlur, secure, right, ...rest }: any) {
@@ -442,7 +352,7 @@ function Field({ label, value, onChange, placeholder, focused, onFocus, onBlur, 
     <View style={s.clayField}>
       <Text style={s.clayLabel}>{label}</Text>
       <View style={[s.premiumClayInput, focused && s.premiumClayInputOn]}>
-        <TextInput placeholder={placeholder} placeholderTextColor="#7A748F" value={value} onChangeText={onChange} onFocus={onFocus} onBlur={onBlur} secureTextEntry={secure} style={s.clayInputInner} {...rest} />
+        <TextInput placeholder={placeholder} placeholderTextColor={T.muted} value={value} onChangeText={onChange} onFocus={onFocus} onBlur={onBlur} secureTextEntry={secure} style={s.clayInputInner} {...rest} />
         {right}
       </View>
     </View>
@@ -466,7 +376,7 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, b
           <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }], flex: 1 }}>
             <View style={s.fullWidthTop}><Pressable style={s.clayBack} onPress={onBack} hitSlop={20}><Text style={s.clayBackText}>←</Text></Pressable><Pressable onPress={onAbout} style={s.clayLogoMini}><Image source={require("../assets/images/circlelogo.png")} style={s.logoImg} resizeMode="contain" /></Pressable></View>
             <View style={s.fullWidthContent}>
-              <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: "#5B5FEF" }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
+              <Text style={[s.expansiveTitle, !isLogin && s.expansiveTitleSmaller, { color: T.primaryText }]}>{isLogin ? "SIGN IN" : "REGISTER"}</Text>
               <Text style={s.expansiveSub}>{isLogin ? "Welcome back to the arena!" : "Your stats are backed up to your account"}</Text>
               <View style={s.clayForm}>
                 {!isLogin && <Field label="USERNAME" placeholder="Name other players will see" value={displayName} onChange={setDisplayName} focused={focusedField === "name"} onFocus={focus("name")} onBlur={blur} maxLength={16} autoCapitalize="words" />}
@@ -478,8 +388,8 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, b
                     <Text style={[s.claySwitchLink, { fontSize: 12 }]}>Forgot password?</Text>
                   </Pressable>
                 )}
-                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#E04848", marginLeft: 2, lineHeight: 18 }}>{authError}</Text>}
-                {!!authNotice && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#14806A", marginLeft: 2, lineHeight: 18 }}>{authNotice}</Text>}
+                {!!authError && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: T.coralText, marginLeft: 2, lineHeight: 18 }}>{authError}</Text>}
+                {!!authNotice && <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: T.mintText, marginLeft: 2, lineHeight: 18 }}>{authNotice}</Text>}
                 <AnimatedPressable style={[s.premiumSubmitBtn, !canSubmit && s.btnOff]} onPress={handleAuth} disabled={!canSubmit}>
                   <Text style={s.premiumSubmitBtnText}>{busy ? "PLEASE WAIT…" : isLogin ? "LOG IN" : "CHOOSE AVATAR"}</Text>
                 </AnimatedPressable>
@@ -488,7 +398,7 @@ function LoginScreen({ isLogin, setIsLogin, handleAuth, authError, authNotice, b
                   <Ionicons name="logo-google" size={20} color="#4285F4" style={{ marginRight: 12 }} />
                   <Text style={s.clayGoogleText}>CONTINUE WITH GOOGLE</Text>
                 </AnimatedPressable>
-                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#A39DB5", textAlign: "center", lineHeight: 16 }}>
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: T.dim, textAlign: "center", lineHeight: 16 }}>
                   {isLogin ? "Signing in needs internet once. Auctions themselves never do." : "We'll email you a link to confirm your address."}
                 </Text>
               </View>

@@ -1,7 +1,7 @@
 import { Action, State } from "../engine";
 
 export const PORT = 47474;
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 export type ClientMsg =
   | { t: "probe" }
