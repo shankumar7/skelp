@@ -73,7 +73,8 @@ test("three phones: join, start, bid against each other, everyone sees the same 
   const a = join(host, "phone-a", "Aryan");
   const b = join(host, "phone-b", "Anika");
   await until(() => st(host).teams.length === 3 && a.getStatus() === "live" && b.getStatus() === "live", "clients to join");
-  expect(st(a).teams.map((t) => t.name)).toEqual(["Shan", "Aryan", "Anika"]);
+  expect(st(a).teams.map((t) => t.owner)).toEqual(["Shan", "Aryan", "Anika"]);
+  expect(st(a).teams.map((t) => t.name)).toEqual(["CSK", "MI", "RCB"]);
 
   host.setConfig(PRESETS.QUICK);
   await until(() => st(b)?.config.mode === "QUICK", "config sync");
@@ -216,7 +217,7 @@ test("host sanitises what strangers send", async () => {
   await until(() => st(host).teams.length === 3, "second join");
   const t = st(host).teams[2];
   expect(t.avatar).toBe("person");
-  expect(t.name.length).toBeLessThanOrEqual(16);
+  expect(t.owner.length).toBeLessThanOrEqual(16);
   raw.close();
 });
 
@@ -299,9 +300,11 @@ test("team identity, custom players, retentions and RTM travel over the network"
   const host = await hostArena();
   const a = join(host, "phone-a", "Aryan");
   await until(() => st(host).teams.length === 2 && a.getStatus() === "live", "client to join");
-  a.setTeam({ name: "Royal Tigers", color: "#E11D48", avatar: "paw" });
-  await until(() => st(host).teams[1].name === "Royal Tigers", "team rename");
-  expect(st(host).teams[1]).toMatchObject({ owner: "Aryan", color: "#E11D48", avatar: "paw" });
+  a.setTeam("CSK"); // the host has it
+  a.setTeam("SRH");
+  await until(() => st(host).teams[1].name === "SRH", "franchise change");
+  expect(st(host).teams.map((t) => t.fr)).toEqual(["CSK", "SRH"]);
+  expect(st(host).teams[1]).toMatchObject({ owner: "Aryan", color: "#F26B1D" });
   a.addPlayer({ name: "Cheat", role: "BAT", overseas: false, base: 20, rating: 99 }); // host only
   host.addPlayer({ name: "Gully Star", role: "AR", overseas: false, base: 50, rating: 80 });
   await until(() => st(a).custom.length === 1, "custom player sync");

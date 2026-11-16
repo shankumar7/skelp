@@ -22,11 +22,12 @@ const SOCIALS = [
   { icon: "mail", label: "Email", url: `mailto:${SUPPORT_EMAIL}` },
 ];
 const WHATS_NEW = [
+  ["shield", "Run a real IPL team", "Pick one of the ten franchises in the lobby; teams show as CSK, MI, RCB…"],
+  ["list", "Players list in the arena", "See who is on the block, who is still to come, and who went where for how much."],
   ["globe", "Play online", "Host an arena for friends anywhere: they join over the internet with a six-character code."],
   ["sync", "In-app updates", "Skelp! checks for new versions and installs them for you."],
   ["card", "Right to Match & retentions", "Keep last season's stars, or match the winning bid with an RTM card."],
   ["tv", "Auctioneer mode", "Put the auction on a shared screen while everyone bids from their phone."],
-  ["color-palette", "Your team, your colours", "Name your team and pick its colour and emblem."],
   ["people", "Custom player pools", "Indian-only or overseas-only pools, plus your own players."],
   ["moon", "Dark mode", "The same soft clay look, easier on the eyes at night."],
   ["time", "Auction history", "Every auction you finish is saved with its full squads."],

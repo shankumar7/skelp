@@ -68,7 +68,8 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 | 🏏 **Real auction rules** | Base prices, IPL-style bid increments, a bid clock that resets on every bid, purse, squad and overseas limits, a marquee set and an accelerated round for unsold players. |
 | 🃏 **Right to Match and retentions** | Optional: every team gets a squad from "last season", keeps up to three players at fixed prices, and can match the winning bid on a former player with an RTM card. |
 | 📺 **Auctioneer mode** | Run the auction on a tablet or spare phone as the big screen while everyone bids from their own phone. |
-| 🎨 **Your team** | Name your team and pick its colour and emblem. |
+| 🏟️ **Run a real IPL team** | Everyone picks one of the ten franchises; teams show as CSK, MI, RCB… in their colours. |
+| 📋 **Players list** | A tab in the arena shows who is on the block, who is still to come, and who was sold to whom for how much. |
 | 👥 **137 players, or your own** | Role, country, base price and rating for each; 85 with a freely-licensed photo. Play Indian-only or overseas-only pools, and add up to 20 players of your own. |
 | 🤖 **Bots with personality** | Star hunters, bargain hunters, pace lovers… they build balanced squads, jump-bid, retain and use RTM cards. Practise solo or fill empty seats. |
 | ↩️ **Host controls** | Pause, undo the latest bid, or end the auction. |
@@ -90,7 +91,7 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 2. **Host:** tap **HOST ARENA** and choose *Play and host* (you own a team too) or *Auctioneer screen* (this device is the big screen). The lobby shows a **QR code** and an **arena code**.
 3. **Everyone else:** tap **SCAN TO JOIN** and point the camera at the host's screen.
    Or tap **NEARBY** and pick the arena, or type the arena code.
-4. Everyone can name their team and pick a colour. The host picks the mode, bid clock, player pool, retentions and RTM cards, optionally adds bots or players of their own, and taps **START AUCTION**.
+4. Everyone picks their IPL team. The host picks the mode, bid clock, player pool, retentions and RTM cards, optionally adds bots or players of their own, and taps **START AUCTION**.
 5. Bid, jump-bid or pass on each player. When the clock runs out the player is **SOLD** to the highest bidder.
 6. When every player has been through, the final table ranks the squads.
 
@@ -243,7 +244,7 @@ test-utils/           in-memory stand-in for the realtime database
 - Sound effects are synthesised by a script in this repository; no third-party samples are used.
 - Player ratings and base prices are game-design values, not official figures.
 
-Skelp! is a fan-made game. It is not affiliated with or endorsed by the IPL, the BCCI or any franchise.
+Skelp! is a fan-made game. It is not affiliated with or endorsed by the IPL, the BCCI or any franchise; team names are used only to identify the teams, and no logos are used.
 
 ## License
 

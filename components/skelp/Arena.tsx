@@ -14,9 +14,9 @@ import { PlayerPhoto } from "./PlayerPhoto";
 import { Tag } from "./Lobby";
 import { isSoundOn, play, setSoundOn } from "@/game/sound";
 import { saveSound } from "@/game/storage";
-import { Backdrop, BigButton, Chip, Column, confirm, RoundButton, s, Segmented, SoftButton, useLayout } from "./ui";
+import { Backdrop, BigButton, Chip, Column, confirm, RoundButton, s, Segmented, SoftButton, useLayout, TeamBadge } from "./ui";
 
-const TABS = ["BIDS", "TEAMS", "SQUADS", "SOLD"] as const;
+const TABS = ["BIDS", "TEAMS", "SQUADS", "PLAYERS"] as const;
 
 /** The live auction room. */
 export function Arena({ session, snapshot, insets, onExit }: { session: Session; snapshot: Snapshot; insets: any; onExit: () => void }) {
@@ -115,7 +115,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
             <Text style={[s.arenaLiveText, { color: statusColor }]}>{statusLabel} • {state.round === 2 ? "ACCELERATED " : ""}LOT {state.pos + 1}/{state.queue.length}</Text>
           </View>
         </View>
-        <View style={[s.arenaUserBox, me && { backgroundColor: me.color }]}><Ionicons name={(me?.avatar ?? "tv") as any} size={22} color={T.white} /></View>
+        {me ? <TeamBadge team={me} size={44} /> : <View style={s.arenaUserBox}><Ionicons name="tv" size={22} color={T.white} /></View>}
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + (me ? 190 : 110) }} showsVerticalScrollIndicator={false}>
@@ -229,7 +229,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               {state.teams.map((t) => (
                 <View key={t.id} style={s.arenaLogItem}>
                   <View style={[s.row, { flex: 1 }]}>
-                    <View style={[s.dashLeaderAvatar, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={16} color={t.color} /></View>
+                    <View style={{ marginRight: 12 }}><TeamBadge team={t} size={34} /></View>
                     <View style={{ flex: 1 }}>
                       <View style={s.row}>
                         <Text style={s.arenaLogUser} numberOfLines={1}>{t.name.toUpperCase()}</Text>
@@ -237,7 +237,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
                         {!t.isBot && !t.connected && <Tag text="OFFLINE" color="#FF6B6B" />}
                         {lot.passed.includes(t.id) && lot.status === "open" && <Tag text="PASSED" color="#FFB238" />}
                       </View>
-                      <Text style={s.arenaLogTime}>{t.squad.length}/{state.config.squadMax} • {overseasCount(t)} OVS • PWR {squadPower(t)}{state.config.rtm > 0 ? ` • ${t.rtm} RTM` : ""}</Text>
+                      <Text style={s.arenaLogTime} numberOfLines={1}>{t.owner.toUpperCase()} • {t.squad.length}/{state.config.squadMax} • {overseasCount(t)} OVS • PWR {squadPower(t)}{state.config.rtm > 0 ? ` • ${t.rtm} RTM` : ""}</Text>
                     </View>
                   </View>
                   <Text style={[s.arenaLogPrice, { flexGrow: 0, flexShrink: 0, flexBasis: "auto", marginRight: 0 }]} numberOfLines={1}>{formatMoney(t.purse)}</Text>
@@ -247,26 +247,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
             </>
           )}
           {activeTab === "SQUADS" && <Squads state={state} myId={myId} />}
-          {activeTab === "SOLD" && (
-            state.results.length === 0 ? (
-              <View style={s.arenaComingSoon}><Text style={s.arenaComingSoonText}>NO PLAYER HAS GONE UNDER THE HAMMER YET</Text></View>
-            ) : (
-              state.results.slice().reverse().map((r) => {
-                const p = getPlayer(r.pid);
-                const t = teamOf(r.team);
-                return (
-                  <View key={r.pid} style={s.arenaLogItem}>
-                    <PlayerPhoto player={p} size={34} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={st.squadName} numberOfLines={1}>{p.name}</Text>
-                      <Text style={[s.arenaLogTime, t && { color: t.color }]} numberOfLines={1}>{t ? `${r.kept ? "RETAINED BY" : r.rtm ? "RTM BY" : "SOLD TO"} ${t.name.toUpperCase()}` : "UNSOLD"}</Text>
-                    </View>
-                    <Text style={[st.squadPrice, !t && { color: T.dim }]} numberOfLines={1}>{t ? formatMoney(r.price) : "—"}</Text>
-                  </View>
-                );
-              })
-            )
-          )}
+          {activeTab === "PLAYERS" && <PlayerList state={state} />}
         </View>
         </View>
        </Column>
@@ -306,6 +287,61 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
        </Column>
       </View>
     </View>
+  );
+}
+
+const LIST_FILTERS = ["ALL", "UPCOMING", "SOLD", "UNSOLD"] as const;
+/** Every player in this auction: who is on the block, who is still to come, who went where and for how much. */
+function PlayerList({ state }: { state: State }) {
+  const [filter, setFilter] = useState<(typeof LIST_FILTERS)[number]>("ALL");
+  const [showAll, setShowAll] = useState(false);
+  const lot = state.lot;
+  const done = new Map(state.results.map((r) => [r.pid, r]));
+  type Row = { pid: number; kind: "now" | "next" | "sold" | "unsold"; n?: number };
+  const upcoming: Row[] = state.queue.slice(state.pos + 1).map((pid, i) => ({ pid, kind: "next", n: i + 1 }));
+  const finished: Row[] = state.results.slice().reverse().map((r) => ({ pid: r.pid, kind: r.team ? "sold" : "unsold" }));
+  // a lot that has just been hammered is already in the results
+  const current: Row[] = lot && !done.has(lot.pid) ? [{ pid: lot.pid, kind: "now" }] : [];
+  const rows = filter === "UPCOMING" ? upcoming : filter === "SOLD" ? finished.filter((r) => r.kind === "sold") : filter === "UNSOLD" ? finished.filter((r) => r.kind === "unsold") : [...current, ...upcoming, ...finished];
+  const shown = showAll ? rows : rows.slice(0, 30);
+  return (
+    <>
+      <View style={[s.row, { gap: 8, marginBottom: 12, flexWrap: "wrap" }]}>
+        {LIST_FILTERS.map((f) => {
+          const count = f === "ALL" ? current.length + upcoming.length + finished.length : f === "UPCOMING" ? upcoming.length : finished.filter((r) => r.kind === (f === "SOLD" ? "sold" : "unsold")).length;
+          return (
+            <Pressable key={f} onPress={() => { setFilter(f); setShowAll(false); }} style={[st.filter, filter === f && st.filterOn]} accessibilityLabel={`Show ${f.toLowerCase()} players`} accessibilityState={{ selected: filter === f }}>
+              <Text style={[st.filterText, filter === f && { color: T.white }]}>{f} {count}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {rows.length === 0 && <View style={s.arenaComingSoon}><Text style={s.arenaComingSoonText}>{filter === "SOLD" ? "NO PLAYER HAS BEEN SOLD YET" : filter === "UNSOLD" ? "NOBODY HAS GONE UNSOLD" : "NO MORE PLAYERS TO COME"}</Text></View>}
+      {shown.map((row) => {
+        const p = getPlayer(row.pid);
+        const r = done.get(row.pid);
+        const t = r?.team ? state.teams.find((x) => x.id === r.team) : undefined;
+        return (
+          <View key={`${row.kind}-${row.pid}`} style={[s.arenaLogItem, row.kind === "now" && { borderWidth: 2, borderColor: T.primary }]}>
+            <PlayerPhoto player={p} size={38} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={st.squadName} numberOfLines={1}>{p.name}</Text>
+              <Text style={s.arenaLogTime} numberOfLines={1}>{ROLE_LABEL[p.role]} • {p.country} • RTG {p.rating} • BASE {formatMoney(p.base)}</Text>
+            </View>
+            {row.kind === "now" && <Chip text="ON THE BLOCK" color={T.primaryText} soft={T.primarySoft} />}
+            {row.kind === "next" && <Text style={s.arenaLogTime}>{row.n === 1 ? "NEXT" : `IN ${row.n}`}</Text>}
+            {row.kind === "unsold" && <Chip text="UNSOLD" color={T.coralText} soft={T.coralSoft} />}
+            {row.kind === "sold" && t && r && (
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={st.squadPrice} numberOfLines={1}>{formatMoney(r.price)}</Text>
+                <Text style={[s.arenaLogTime, { color: t.color }]} numberOfLines={1}>{r.kept ? "RETAINED BY" : r.rtm ? "RTM BY" : "SOLD TO"} {t.name.toUpperCase()}</Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+      {rows.length > shown.length && <SoftButton title={`SHOW ALL ${rows.length} PLAYERS`} icon="chevron-down" color={T.primaryText} style={{ marginTop: 4 }} onPress={() => setShowAll(true)} />}
+    </>
   );
 }
 
@@ -400,6 +436,9 @@ function SquadCard({ team, mine, initiallyOpen }: { team: Team; mine: boolean; i
 }
 
 const st = themed(() => StyleSheet.create({
+  filter: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: T.card, boxShadow: T.claySoft },
+  filterOn: { backgroundColor: T.primary, boxShadow: T.clayPrimary },
+  filterText: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.muted, letterSpacing: 0.8 },
   cardRing: { position: "absolute", width: 320, height: 320, borderRadius: 160, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", top: -170, right: -110 },
   rtmBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: T.goldSoft, marginHorizontal: 20, marginTop: 12, borderRadius: 18, paddingVertical: 12, paddingHorizontal: 16 },
   rtmText: { flex: 1, fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.goldText, letterSpacing: 0.8, lineHeight: 15 },

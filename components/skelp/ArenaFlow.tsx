@@ -52,7 +52,7 @@ export function ArenaFlow({ session, insets, onExit, onFinished }: { session: Se
     const date = Date.now();
     const full: Archive = {
       date, arena: state.arena, mode: state.config.mode, myId: me ? session.myId : "", sold: state.results.filter((r) => r.team && !r.kept).length, unsold: state.unsold.length, custom: state.custom,
-      teams: state.teams.map((t) => ({ id: t.id, name: t.name, owner: t.owner, color: t.color, avatar: t.avatar, isBot: t.isBot, purse: t.purse, power: squadPower(t), squad: t.squad })),
+      teams: state.teams.map((t) => ({ id: t.id, name: t.name, fr: t.fr, owner: t.owner, color: t.color, avatar: t.avatar, isBot: t.isBot, purse: t.purse, power: squadPower(t), squad: t.squad })),
     };
     onFinished(me ? { date, arena: state.arena, rank, teams: table.length, power: squadPower(me), spent: spent(me), players: me.squad.length } : null, full);
   }, [phase]);

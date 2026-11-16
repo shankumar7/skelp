@@ -6,15 +6,29 @@ import { increment } from "./money";
 import { CUSTOM_ID, getPlayer, MAX_CUSTOM, PLAYERS, Player, registerCustom, Role } from "./players";
 
 export const MAX_TEAMS = 10;
-export const TEAM_COLORS = ["#5B5FEF", "#2EC4A0", "#FFB238", "#FF6B6B", "#A66CFF", "#FF7EB6", "#38BDF8", "#14B8A6", "#FB923C", "#7A748F", "#84CC16", "#E11D48"];
-/** Emblems a team can pick (Ionicons names). */
-export const TEAM_EMBLEMS = ["shield", "flash", "trophy", "rocket", "flame", "star", "diamond", "skull", "planet", "paw", "thunderstorm", "football", "heart", "eye", "construct", "person"];
+/** The ten IPL franchises a player can run. Names and colours only — no logos. `ink` is the text colour that reads on the team colour. */
+export interface Franchise { code: string; name: string; city: string; color: string; ink: string }
+export const FRANCHISES: Franchise[] = [
+  { code: "CSK", name: "Chennai Super Kings", city: "Chennai", color: "#F5B800", ink: "#3A2A00" },
+  { code: "MI", name: "Mumbai Indians", city: "Mumbai", color: "#1E78D6", ink: "#FFFFFF" },
+  { code: "RCB", name: "Royal Challengers Bengaluru", city: "Bengaluru", color: "#C8102E", ink: "#FFFFFF" },
+  { code: "KKR", name: "Kolkata Knight Riders", city: "Kolkata", color: "#7A4FD0", ink: "#FFFFFF" },
+  { code: "SRH", name: "Sunrisers Hyderabad", city: "Hyderabad", color: "#F26B1D", ink: "#FFFFFF" },
+  { code: "RR", name: "Rajasthan Royals", city: "Rajasthan", color: "#EA3A93", ink: "#FFFFFF" },
+  { code: "DC", name: "Delhi Capitals", city: "Delhi", color: "#4F63E8", ink: "#FFFFFF" },
+  { code: "PBKS", name: "Punjab Kings", city: "Punjab", color: "#F04A4A", ink: "#FFFFFF" },
+  { code: "LSG", name: "Lucknow Super Giants", city: "Lucknow", color: "#12A9BD", ink: "#FFFFFF" },
+  { code: "GT", name: "Gujarat Titans", city: "Gujarat", color: "#5F7896", ink: "#FFFFFF" },
+];
+export const franchise = (code: string | null | undefined): Franchise | undefined => FRANCHISES.find((f) => f.code === code);
 
 export interface SquadEntry { pid: number; price: number; /** retained before the auction */ kept?: boolean; /** bought back with a Right to Match card */ rtm?: boolean }
 export interface Team {
   id: string;
-  /** team name (starts as the player's name; editable in the lobby) */
+  /** what the team is called everywhere: its franchise code (CSK, MI…) */
   name: string;
+  /** the IPL franchise this team is */
+  fr: string;
   /** the player who runs the team */
   owner: string;
   /** Right to Match cards left */
@@ -101,8 +115,8 @@ export type Action =
   | { type: "tick"; dt: number }
   | { type: "pause"; on: boolean }
   | { type: "end" }
-  /** change a team's name, colour or emblem (lobby only) */
-  | { type: "team"; id: string; name?: string; color?: string; avatar?: string }
+  /** pick another IPL franchise (lobby only; each one can be taken once) */
+  | { type: "team"; id: string; fr: string }
   /** host: take back the latest bid on the open lot */
   | { type: "undo" }
   | { type: "addPlayer"; player: { name: string; role: Role; overseas: boolean; base: number; rating: number } }
@@ -350,12 +364,13 @@ export function reduce(s: State, a: Action): State {
       const existing = s.teams.find((t) => t.id === a.id);
       if (existing) return { ...s, teams: s.teams.map((t) => (t.id === a.id ? { ...t, connected: true } : t)) };
       if (s.phase !== "lobby" || s.teams.length >= MAX_TEAMS) return s;
-      const used = new Set(s.teams.map((t) => t.color));
-      const color = TEAM_COLORS.find((c) => !used.has(c)) ?? TEAM_COLORS[0];
-      let name = a.name.trim().slice(0, 16) || "PLAYER";
-      const names = new Set(s.teams.map((t) => t.name.toUpperCase()));
-      for (let n = 2; names.has(name.toUpperCase()); n++) name = `${a.name.trim().slice(0, 14)} ${n}`;
-      const team: Team = { id: a.id, name, owner: name, rtm: s.config.rtm, avatar: a.avatar, color, isBot: !!a.isBot, connected: true, purse: s.config.purse, squad: [] };
+      // everyone gets the first franchise nobody has taken, and can swap in the lobby
+      const taken = new Set(s.teams.map((t) => t.fr));
+      const fr = FRANCHISES.find((f) => !taken.has(f.code)) ?? FRANCHISES[0];
+      let owner = cleanName(a.name, 16) || "PLAYER";
+      const owners = new Set(s.teams.map((t) => t.owner.toUpperCase()));
+      for (let n = 2; owners.has(owner.toUpperCase()); n++) owner = `${cleanName(a.name, 14) || "PLAYER"} ${n}`;
+      const team: Team = { id: a.id, name: fr.code, fr: fr.code, owner, rtm: s.config.rtm, avatar: a.avatar, color: fr.color, isBot: !!a.isBot, connected: true, purse: s.config.purse, squad: [] };
       return { ...s, teams: [...s.teams, team] };
     }
     case "leave": {
@@ -376,15 +391,9 @@ export function reduce(s: State, a: Action): State {
     case "team": {
       if (s.phase !== "lobby") return s;
       const me = s.teams.find((t) => t.id === a.id);
-      if (!me) return s;
-      const others = s.teams.filter((t) => t.id !== a.id);
-      const next = { ...me };
-      const name = cleanName(a.name, 16);
-      if (a.name !== undefined && name && !others.some((t) => t.name.toUpperCase() === name.toUpperCase())) next.name = name;
-      if (a.color !== undefined && TEAM_COLORS.includes(a.color) && !others.some((t) => t.color === a.color)) next.color = a.color;
-      if (a.avatar !== undefined && TEAM_EMBLEMS.includes(a.avatar)) next.avatar = a.avatar;
-      if (next.name === me.name && next.color === me.color && next.avatar === me.avatar) return s;
-      return { ...s, teams: s.teams.map((t) => (t.id === a.id ? next : t)) };
+      const fr = franchise(a.fr);
+      if (!me || !fr || me.fr === fr.code || s.teams.some((t) => t.fr === fr.code)) return s;
+      return { ...s, teams: s.teams.map((t) => (t.id === a.id ? { ...t, fr: fr.code, name: fr.code, color: fr.color } : t)) };
     }
     case "addPlayer": {
       if (s.phase !== "lobby" || s.custom.length >= MAX_CUSTOM || !a.player) return s;

@@ -1,5 +1,5 @@
 import { BotBrain, personality, roleTargets, valuation } from "../game/bots";
-import { Action, bidBlocker, buildQueue, poolPlayers, retainBlocker, retainPrice, RTM_MS, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
+import { Action, bidBlocker, buildQueue, franchise, FRANCHISES, poolPlayers, retainBlocker, retainPrice, RTM_MS, createState, mulberry32, nextBid, overseasCount, PRESETS, reduce, squadPower, standings, State } from "../game/engine";
 import { formatMoney, increment } from "../game/money";
 import { getPlayer, PLAYERS } from "../game/players";
 
@@ -146,7 +146,7 @@ describe("bidding", () => {
     expect(s.teams.find((t) => t.id === "t2")!.connected).toBe(false);
     // and they can come back mid-auction with their team intact
     s = reduce(s, { type: "join", id: "t2", name: "Changed", avatar: "x" });
-    expect(s.teams.find((t) => t.id === "t2")).toMatchObject({ connected: true, name: "Team 2" });
+    expect(s.teams.find((t) => t.id === "t2")).toMatchObject({ connected: true, owner: "Team 2", name: "MI" });
   });
   test("newcomers cannot join once the auction started", () => {
     const s = started();
@@ -209,15 +209,21 @@ describe("full auctions with bots", () => {
 });
 
 describe("1.5 rules", () => {
-  test("teams can be renamed, recoloured and given an emblem in the lobby only", () => {
+  test("every team is an IPL franchise, and can swap to a free one in the lobby only", () => {
     let s = lobby(3);
-    s = reduce(s, { type: "team", id: "t2", name: "  Royal Tigers  ", color: "#E11D48", avatar: "paw" });
-    expect(s.teams[1]).toMatchObject({ name: "Royal Tigers", owner: "Team 2", color: "#E11D48", avatar: "paw" });
-    // a taken name or colour, or an unknown emblem, is refused
-    const same = reduce(s, { type: "team", id: "t3", name: "royal tigers", color: "#E11D48", avatar: "<script>" });
-    expect(same).toBe(s);
+    expect(s.teams.map((t) => t.name)).toEqual(["CSK", "MI", "RCB"]);
+    expect(s.teams[1]).toMatchObject({ fr: "MI", owner: "Team 2", color: franchise("MI")!.color });
+    s = reduce(s, { type: "team", id: "t2", fr: "KKR" });
+    expect(s.teams[1]).toMatchObject({ name: "KKR", fr: "KKR", owner: "Team 2", color: franchise("KKR")!.color });
+    // a franchise someone else has, or one that does not exist, is refused
+    expect(reduce(s, { type: "team", id: "t3", fr: "KKR" })).toBe(s);
+    expect(reduce(s, { type: "team", id: "t3", fr: "<script>" })).toBe(s);
+    // the one t2 gave up is free again
+    expect(reduce(s, { type: "team", id: "t3", fr: "MI" }).teams[2].name).toBe("MI");
     const live = reduce(s, { type: "start", seed: 1 });
-    expect(reduce(live, { type: "team", id: "t2", name: "Nope" })).toBe(live);
+    expect(reduce(live, { type: "team", id: "t2", fr: "GT" })).toBe(live);
+    expect(new Set(FRANCHISES.map((f) => f.code)).size).toBe(10);
+    expect(new Set(FRANCHISES.map((f) => f.color)).size).toBe(10);
   });
 
   test("undo takes back the latest bid and resets the clock", () => {

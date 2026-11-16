@@ -7,7 +7,7 @@ import { Session } from "@/game/net/session";
 import { getPlayer, ROLE_LABEL } from "@/game/players";
 import { PlayerPhoto } from "./PlayerPhoto";
 import { T, themed } from "./theme";
-import { Backdrop, BigButton, Card, Chip, Column, confirm, k, RoundButton, s, SectionTitle } from "./ui";
+import { Backdrop, BigButton, Card, Chip, Column, confirm, k, RoundButton, s, SectionTitle, TeamBadge } from "./ui";
 
 /** Before the hammer: every team decides which of last season's players to keep. */
 export function Retention({ session, state, stamp, insets, onExit }: { session: Session; state: State; stamp: number; insets: any; onExit: () => void }) {
@@ -90,7 +90,7 @@ export function Retention({ session, state, stamp, insets, onExit }: { session: 
               const ready = t.id in state.picks;
               return (
                 <View key={t.id} style={[st.teamRow, i === state.teams.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={[st.dot, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={15} color={t.color} /></View>
+                  <View style={{ marginRight: 12 }}><TeamBadge team={t} size={34} /></View>
                   <Text style={[st.name, { flex: 1, fontSize: 14 }]} numberOfLines={1}>{t.name.toUpperCase()}{t.id === session.myId ? " (YOU)" : ""}</Text>
                   {ready ? <Chip text={`KEPT ${state.picks[t.id].length}`} color={T.mintText} soft={T.mintSoft} icon="checkmark" /> : <Chip text={t.connected || t.isBot ? "DECIDING" : "OFFLINE"} color={T.goldText} soft={T.goldSoft} />}
                 </View>

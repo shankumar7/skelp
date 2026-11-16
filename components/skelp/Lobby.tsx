@@ -3,7 +3,7 @@ import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, Share } from 
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Config, MAX_TEAMS, PoolFilter, poolPlayers, PRESETS, retainPrice, State, TEAM_COLORS, TEAM_EMBLEMS } from "@/game/engine";
+import { Config, MAX_TEAMS, PoolFilter, poolPlayers, PRESETS, retainPrice, State, franchise, FRANCHISES } from "@/game/engine";
 import { personality } from "@/game/bots";
 import { MAX_CUSTOM, Role, ROLE_LABEL } from "@/game/players";
 import { formatMoney } from "@/game/money";
@@ -11,7 +11,7 @@ import { getLocalIp } from "@/game/net/native";
 import { makeJoinLink, Session } from "@/game/net/session";
 import { openHotspotSettings } from "@/game/net/settings";
 import { QrCode } from "./QrCode";
-import { Backdrop, BigButton, Card, Column, k, RoundButton, s, SectionTitle, Segmented, Sheet, SoftButton, useLayout } from "./ui";
+import { Backdrop, BigButton, Card, Column, k, RoundButton, s, SectionTitle, Segmented, Sheet, SoftButton, useLayout, TeamBadge } from "./ui";
 
 const MODES: Config["mode"][] = ["QUICK", "CLASSIC", "MEGA"];
 const TIMERS = [10, 15, 20] as const;
@@ -53,7 +53,7 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
           <Text style={s.arenaCode} numberOfLines={1}>{state.arena.toUpperCase()}</Text>
           <View style={s.arenaStatus}><View style={[s.arenaDot, { backgroundColor: T.gold }]} /><Text style={[s.arenaLiveText, { color: T.goldText }]}>LOBBY</Text></View>
         </View>
-        <View style={[s.arenaUserBox, me && { backgroundColor: me.color }]}><Ionicons name={(me?.avatar ?? "tv") as any} size={22} color={T.white} /></View>
+        {me ? <TeamBadge team={me} size={44} /> : <View style={s.arenaUserBox}><Ionicons name="tv" size={22} color={T.white} /></View>}
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 150 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -105,15 +105,15 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
 
             {me && (
               <>
-                <SectionTitle title="YOUR TEAM" action="EDIT" onAction={() => setEditTeam(true)} />
-                <Pressable onPress={() => setEditTeam(true)} accessibilityLabel="Edit your team">
+                <SectionTitle title="YOUR TEAM" action="CHANGE" onAction={() => setEditTeam(true)} />
+                <Pressable onPress={() => setEditTeam(true)} accessibilityLabel="Choose your team">
                   <Card pad={16} style={s.row}>
-                    <View style={[st.emblem, { backgroundColor: me.color, boxShadow: `0px 8px 14px ${me.color}55, inset 0px -5px 8px rgba(0, 0, 0, 0.2), inset 0px 5px 8px rgba(255, 255, 255, 0.4)` }]}><Ionicons name={me.avatar as any} size={26} color="#FFF" /></View>
+                    <TeamBadge team={me} size={54} />
                     <View style={{ flex: 1, marginLeft: 14 }}>
-                      <Text style={st.teamName} numberOfLines={1}>{me.name.toUpperCase()}</Text>
-                      <Text style={st.teamMeta}>NAME, COLOUR AND EMBLEM — TAP TO CHANGE</Text>
+                      <Text style={st.teamName} numberOfLines={1} adjustsFontSizeToFit>{(franchise(me.fr)?.name ?? me.name).toUpperCase()}</Text>
+                      <Text style={st.teamMeta}>TAP TO CHOOSE YOUR IPL TEAM</Text>
                     </View>
-                    <Ionicons name="color-palette" size={20} color={T.dim} />
+                    <Ionicons name="swap-horizontal" size={20} color={T.dim} />
                   </Card>
                 </Pressable>
               </>
@@ -125,7 +125,7 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
               {state.teams.map((t, i) => (
                 <View key={t.id} style={[s.dashLeaderItem, i === state.teams.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={[s.row, { flex: 1 }]}>
-                    <View style={[st.dot, { backgroundColor: t.color + "22" }]}><Ionicons name={t.avatar as any} size={16} color={t.color} /></View>
+                    <View style={{ marginRight: 12 }}><TeamBadge team={t} size={34} /></View>
                     <View style={{ flex: 1 }}>
                       <View style={s.row}>
                         <Text style={[s.dashLeaderName, { flexShrink: 1 }]} numberOfLines={1}>{t.name.toUpperCase()}</Text>
@@ -133,10 +133,10 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
                         {t.id === session.myId && <Tag text="YOU" color={T.mintText} />}
                         {t.isBot && <Tag text="BOT" color={T.muted} />}
                       </View>
-                      <Text style={st.teamMeta} numberOfLines={1}>{t.isBot ? personality(t.id).key : t.owner.toUpperCase() === t.name.toUpperCase() ? formatMoney(cfg.purse) + " PURSE" : `RUN BY ${t.owner.toUpperCase()}`}</Text>
+                      <Text style={st.teamMeta} numberOfLines={1}>{(franchise(t.fr)?.name ?? "").toUpperCase()} • {t.isBot ? `${t.owner} • ${personality(t.id).key}` : t.owner.toUpperCase()}</Text>
                     </View>
                   </View>
-                  {host && t.id !== state.hostId && <Pressable onPress={() => session.kick(t.id)} hitSlop={10} accessibilityLabel={`Remove ${t.name}`}><Ionicons name="close-circle" size={22} color={T.lineStrong} /></Pressable>}
+                  {host && t.id !== state.hostId && <Pressable onPress={() => session.kick(t.id)} hitSlop={10} accessibilityLabel={`Remove ${t.owner}`}><Ionicons name="close-circle" size={22} color={T.lineStrong} /></Pressable>}
                 </View>
               ))}
             </Card>
@@ -206,36 +206,27 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
   );
 }
 
-/** Pick a team name, colour and emblem; taken colours are greyed out. */
+/** Choose which IPL franchise you run; ones already taken are greyed out. */
 function TeamSheet({ visible, onClose, state, session }: { visible: boolean; onClose: () => void; state: State; session: Session }) {
   const me = state.teams.find((t) => t.id === session.myId)!;
-  const [name, setName] = useState(me.name);
-  useEffect(() => { if (visible) setName(me.name); }, [visible]);
-  const taken = new Set(state.teams.filter((t) => t.id !== me.id).map((t) => t.color));
-  const clean = name.trim().slice(0, 16);
-  const nameTaken = state.teams.some((t) => t.id !== me.id && t.name.toUpperCase() === clean.toUpperCase());
   return (
-    <Sheet visible={visible} onClose={onClose} title="YOUR TEAM">
-      <Text style={k.label}>TEAM NAME</Text>
-      <TextInput value={name} onChangeText={setName} maxLength={16} placeholder="Team name" placeholderTextColor={T.dim} style={k.input} autoCapitalize="characters" accessibilityLabel="Team name" />
-      {nameTaken && <Text style={[st.explain, { color: T.coralText }]}>Another team already uses this name.</Text>}
-      <Text style={[k.label, { marginTop: 18 }]}>COLOUR</Text>
-      <View style={st.grid}>
-        {TEAM_COLORS.map((c) => (
-          <Pressable key={c} disabled={taken.has(c)} onPress={() => session.setTeam({ color: c })} style={[st.swatch, { backgroundColor: c }, taken.has(c) && { opacity: 0.18 }, me.color === c && st.swatchOn]} accessibilityLabel={`Colour ${c}`} accessibilityState={{ selected: me.color === c, disabled: taken.has(c) }}>
-            {me.color === c && <Ionicons name="checkmark" size={20} color="#FFF" />}
+    <Sheet visible={visible} onClose={onClose} title="CHOOSE YOUR TEAM">
+      {FRANCHISES.map((f) => {
+        const holder = state.teams.find((t) => t.fr === f.code);
+        const mine = holder?.id === me.id;
+        const taken = !!holder && !mine;
+        return (
+          <Pressable key={f.code} disabled={taken} onPress={() => { session.setTeam(f.code); onClose(); }} style={[st.frRow, mine && { borderColor: f.color, backgroundColor: f.color + "1F" }, taken && { opacity: 0.45 }]} accessibilityLabel={`Choose ${f.name}`} accessibilityState={{ selected: mine, disabled: taken }}>
+            <TeamBadge team={{ fr: f.code, name: f.code, color: f.color }} size={42} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={st.frName} numberOfLines={1}>{f.name}</Text>
+              <Text style={st.teamMeta}>{mine ? "YOUR TEAM" : taken ? `TAKEN BY ${holder!.owner.toUpperCase()}` : "AVAILABLE"}</Text>
+            </View>
+            {mine && <Ionicons name="checkmark-circle" size={24} color={f.color} />}
           </Pressable>
-        ))}
-      </View>
-      <Text style={[k.label, { marginTop: 18 }]}>EMBLEM</Text>
-      <View style={st.grid}>
-        {TEAM_EMBLEMS.map((e) => (
-          <Pressable key={e} onPress={() => session.setTeam({ avatar: e })} style={[st.emblemPick, me.avatar === e && { borderColor: me.color, backgroundColor: me.color + "22" }]} accessibilityLabel={`Emblem ${e}`} accessibilityState={{ selected: me.avatar === e }}>
-            <Ionicons name={e as any} size={22} color={me.avatar === e ? me.color : T.sub} />
-          </Pressable>
-        ))}
-      </View>
-      <BigButton title="DONE" disabled={clean.length < 2 || nameTaken} onPress={() => { if (clean !== me.name) session.setTeam({ name: clean }); onClose(); }} style={{ marginTop: 22 }} />
+        );
+      })}
+      <Text style={[st.explain, { textAlign: "center", marginTop: 6 }]}>Team names are used for fun. Skelp! is not affiliated with the IPL or any franchise.</Text>
     </Sheet>
   );
 }
@@ -291,6 +282,8 @@ const st = themed(() => StyleSheet.create({
   heroIcon: { position: "absolute", right: -22, bottom: -26 },
   emblem: { width: 52, height: 52, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   teamName: { fontFamily: "LuckiestGuy_400Regular", fontSize: 20, color: T.ink, letterSpacing: 0.8 },
+  frRow: { flexDirection: "row", alignItems: "center", backgroundColor: T.card, borderRadius: 20, padding: 12, marginBottom: 10, borderWidth: 2, borderColor: T.cardEdge, boxShadow: T.claySoft },
+  frName: { fontFamily: "Poppins_600SemiBold", fontSize: 15, color: T.ink },
   teamMeta: { fontFamily: "Inter_700Bold", fontSize: 9, color: T.muted, letterSpacing: 0.6, marginTop: 1 },
   dot: { width: 34, height: 34, borderRadius: 13, alignItems: "center", justifyContent: "center", marginRight: 12 },
   rules: { flexDirection: "row", gap: 8, marginTop: 14 },
