@@ -70,6 +70,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     } else if (before.status !== "sold" && lotStatus === "sold" && lotBidder === myId) {
       setAlert("YOU GOT YOUR PLAYER!");
+      setParty((n) => n + 1);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   }, [lotPid, lotBidder, lotStatus]);
@@ -80,6 +81,28 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
   }, [alert]);
 
   // --- emoji reactions floating over the player card ---
+  // --- a little celebration when you win a player ---
+  const [party, setParty] = useState(0);
+  useEffect(() => {
+    if (!party) return;
+    const emojis = ["🎉", "🏏", "🎊", "🙌", "🎉", "⭐"];
+    const base = bubbleSeq.current;
+    bubbleSeq.current += emojis.length;
+    emojis.forEach((emoji, i) => {
+      const key = base + i + 1;
+      setTimeout(() => {
+        setBubbles((list) => [...list.slice(-10), { key, emoji, who: "", color: "transparent", x: 6 + i * 15 }]);
+        setTimeout(() => setBubbles((list) => list.filter((b) => b.key !== key)), 2300);
+      }, i * 110);
+    });
+  }, [party]);
+  // --- the player card eases in for every new lot ---
+  const cardIn = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    cardIn.setValue(0);
+    Animated.timing(cardIn, { toValue: 1, duration: 420, useNativeDriver: true }).start();
+  }, [lotPid]);
+
   const [bubbles, setBubbles] = useState<{ key: number; emoji: string; who: string; color: string; x: number }[]>([]);
   const bubbleSeq = useRef(0);
   useEffect(() => session.onReaction((teamId, emoji) => {
@@ -91,6 +114,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
 
   if (!lot) return <View style={[s.screen, s.center]}><Text style={s.arenaComingSoonText}>PREPARING THE NEXT PLAYER…</Text></View>;
   const myId = me?.id ?? "";
+  const ping = snapshot.latency;
   const set = setOf(state, lot.pid);
   const starred = stars.has(lot.pid);
   const former = teamOf(state.former[String(lot.pid)] ?? null);
@@ -124,6 +148,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
           <View style={s.arenaStatus}>
             <View style={[s.arenaDot, { backgroundColor: statusColor }]} />
             <Text style={[s.arenaLiveText, { color: statusColor }]}>{statusLabel} • {state.round === 2 ? "ACCELERATED " : ""}LOT {state.pos + 1}/{state.queue.length}</Text>
+            {!session.isHost && status === "live" && ping !== null && <Signal ms={ping} />}
           </View>
         </View>
         {me ? <TeamBadge team={me} size={44} /> : <View style={s.arenaUserBox}><Ionicons name="tv" size={22} color={T.white} /></View>}
@@ -142,7 +167,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
                 <ClockText snapshot={snapshot} />
               </View>
             </View>
-            <View style={{ marginTop: 18 }}>
+            <Animated.View style={{ marginTop: 18, opacity: cardIn, transform: [{ translateY: cardIn.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
               {set && <Text style={st.setLine}>{set.label} • {set.n} OF {set.of}</Text>}
               <View style={[s.row, { gap: 8, flexWrap: "wrap" }]}>
                 {starred && <View style={[s.arenaCategoryBadge, { backgroundColor: "rgba(255, 214, 107, 0.32)" }]}><Text style={[s.arenaCategoryText, { color: "#FFE9A8" }]}>★ SHORTLIST</Text></View>}
@@ -151,7 +176,7 @@ export function Arena({ session, snapshot, insets, onExit }: { session: Session;
               </View>
               <Text style={[s.arenaPlayerName, { fontSize: 34 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{player.name.toUpperCase()}</Text>
               <Text style={s.arenaPlayerMeta}>{COUNTRY_LABEL[player.country] ?? player.country} • BASE {formatMoney(player.base)} • RATING {player.rating}</Text>
-            </View>
+            </Animated.View>
             <ClockBar snapshot={snapshot} />
             {settled && (
               <Animated.View pointerEvents="none" style={[st.stamp, { borderColor: lot.status === "sold" ? "#7CEBCB" : lot.status === "rtm" ? "#FFD66B" : "#FFB3B3", opacity: stamp, transform: [{ rotate: "-12deg" }, { scale: stamp.interpolate({ inputRange: [0, 1], outputRange: [2.2, 1] }) }] }]}>
@@ -409,8 +434,25 @@ function ClockText({ snapshot }: { snapshot: Snapshot }) {
   const { seconds } = useCountdown(snapshot);
   const open = snapshot.state?.lot?.status === "open";
   const ticking = open && !snapshot.state?.paused && snapshot.status === "live" && seconds > 0 && seconds <= 5;
-  useEffect(() => { if (ticking) play("tick", 0.8); }, [ticking, seconds]); // last five seconds tick audibly
-  return <Text style={[s.arenaTimerVal, open && seconds <= 5 && { color: "#FFD6D6" }]} accessibilityLabel={`${seconds} seconds left`}>{seconds}s</Text>;
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!ticking) return;
+    play("tick", 0.8); // the last five seconds tick audibly, and the clock beats with them
+    pulse.setValue(1.35);
+    Animated.spring(pulse, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }).start();
+  }, [ticking, seconds]);
+  return <Animated.Text style={[s.arenaTimerVal, open && seconds <= 5 && { color: "#FFD6D6" }, { transform: [{ scale: pulse }] }]} accessibilityLabel={`${seconds} seconds left`}>{seconds}s</Animated.Text>;
+}
+/** Connection quality to the host: three bars and the round-trip time. */
+function Signal({ ms }: { ms: number }) {
+  const level = ms < 150 ? 3 : ms < 450 ? 2 : 1;
+  const color = level === 3 ? "#2EC4A0" : level === 2 ? "#F5A623" : "#FF6B6B";
+  return (
+    <View style={st.signal} accessibilityLabel={`Connection ${level === 3 ? "good" : level === 2 ? "fair" : "slow"}, ${ms} milliseconds`}>
+      {[1, 2, 3].map((n) => <View key={n} style={{ width: 3, height: 3 + n * 2.5, borderRadius: 1.5, marginRight: 1.5, backgroundColor: n <= level ? color : T.lineStrong }} />)}
+      <Text style={[st.signalText, { color }]}>{ms} MS</Text>
+    </View>
+  );
 }
 function ClockBar({ snapshot }: { snapshot: Snapshot }) {
   const { seconds, fraction } = useCountdown(snapshot);
@@ -429,7 +471,7 @@ function Bubble({ emoji, who, color, x }: { emoji: string; who: string; color: s
   return (
     <Animated.View pointerEvents="none" style={[st.bubble, { left: `${x}%`, opacity: a.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, -150] }) }, { scale: a.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.4, 1.15, 1] }) }] }]}>
       <Text style={st.bubbleEmoji}>{emoji}</Text>
-      <View style={[st.bubbleTag, { backgroundColor: color }]}><Text style={st.bubbleWho} numberOfLines={1}>{who}</Text></View>
+      {!!who && <View style={[st.bubbleTag, { backgroundColor: color }]}><Text style={st.bubbleWho} numberOfLines={1}>{who}</Text></View>}
     </Animated.View>
   );
 }
@@ -483,6 +525,8 @@ function SquadCard({ team, mine, initiallyOpen }: { team: Team; mine: boolean; i
 }
 
 const st = themed(() => StyleSheet.create({
+  signal: { flexDirection: "row", alignItems: "flex-end", marginLeft: 8 },
+  signalText: { fontFamily: "Inter_800ExtraBold", fontSize: 8, letterSpacing: 0.6, marginLeft: 3 },
   setLine: { fontFamily: "Inter_800ExtraBold", fontSize: 9, color: "#D9D6FF", letterSpacing: 1.6, marginBottom: 8 },
   setHeader: { fontFamily: "Inter_800ExtraBold", fontSize: 10, color: T.primaryText, letterSpacing: 1.6, marginTop: 10, marginBottom: 8, marginLeft: 4 },
   purseChip: { flexDirection: "row", alignItems: "center", backgroundColor: T.card, borderRadius: 16, paddingVertical: 7, paddingLeft: 8, paddingRight: 12, borderWidth: 1.5, borderColor: T.cardEdge, boxShadow: T.claySoft, marginBottom: 6 },

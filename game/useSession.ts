@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { State } from "./engine";
 import { Session, Status } from "./net/session";
 
-export interface Snapshot { state: State | null; status: Status; stamp: number }
-const snap = (s: Session): Snapshot => ({ state: s.getState(), status: s.getStatus(), stamp: s.getStamp() });
+export interface Snapshot { state: State | null; status: Status; stamp: number; /** round trip to the host in ms; null until measured */ latency: number | null }
+const snap = (s: Session): Snapshot => ({ state: s.getState(), status: s.getStatus(), stamp: s.getStamp(), latency: s.getLatency() });
 
 /** Mirror the session into React state so screens re-render whenever it changes. */
 export function useSession(session: Session): Snapshot {

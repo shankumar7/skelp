@@ -6,7 +6,7 @@
  * No internet is involved anywhere.
  */
 import { BOT_AVATARS, BOT_NAMES, BotBrain } from "../bots";
-import { Action, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
+import { Action, bidBlocker, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
 import { CUSTOM_ID, MAX_CUSTOM, PLAYERS, registerCustom, Role } from "../players";
 import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, REACTIONS, ServerMsg } from "./protocol";
 import { claimCode, Db, infoOf, makeOnlineTransport, setInfo } from "./online";
@@ -25,6 +25,8 @@ export interface Session {
   getStatus(): Status;
   /** ms timestamp (local clock) of the last state update — used to animate the countdown */
   getStamp(): number;
+  /** round-trip time to the host in ms (0 on the host itself, null until measured) */
+  getLatency(): number | null;
   subscribe(cb: () => void): () => void;
   bid(amount: number): void;
   pass(): void;
@@ -141,6 +143,7 @@ export class HostSession extends Base implements Session {
 
   getState() { return this.state; }
   getStatus() { return this.status; }
+  getLatency() { return 0; }
 
   private apply(a: Action, sync = true) {
     const next = reduce(this.state, a);
@@ -331,6 +334,13 @@ export class ClientSession extends Base implements Session {
   getState() { return this.state; }
   getStatus() { return this.status; }
   /** where this phone is connected to — enough to join the same arena again later */
+  getLatency() { return this.latency; }
+  private latency: number | null = null;
+  private pingAt = 0;
+  private ping() {
+    this.pingAt = Date.now();
+    this.sock?.write(encode({ t: "ping" }));
+  }
   get address() { return { host: this.host, port: this.port, online: this.online }; }
 
   private open() {
@@ -357,7 +367,15 @@ export class ClientSession extends Base implements Session {
       if (m.s.custom.length) registerCustom(m.s.custom);
       this.state = m.s;
       this.status = "live";
+      this.retries = 0;
       this.emit();
+    } else if (m.t === "pong") {
+      if (this.pingAt) {
+        const rtt = Date.now() - this.pingAt;
+        this.pingAt = 0;
+        // smooth it a little so the number does not jump around
+        this.latency = this.latency === null ? rtt : Math.round(this.latency * 0.6 + rtt * 0.4);
+      }
     } else if (m.t === "react") {
       this.fireReaction(m.id, m.e);
     } else if (m.t === "reject") {
@@ -377,8 +395,10 @@ export class ClientSession extends Base implements Session {
     this.status = this.state ? "reconnecting" : "connecting";
     this.emit();
     clearTimeout(this.retry);
-    this.retry = setTimeout(() => this.open(), 1500);
+    // the first try is immediate; after that, every second and a half
+    this.retry = setTimeout(() => this.open(), this.retries++ === 0 ? 250 : 1500);
   }
+  private retries = 0;
   private attempts = 0;
 
   private fail(reason: string) {
@@ -395,18 +415,48 @@ export class ClientSession extends Base implements Session {
       this.lost();
       return;
     }
-    this.sock.write(encode({ t: "ping" }));
+    this.ping();
   }
 
-  /** App came back to the foreground: check the line straight away instead of waiting for the next heartbeat. */
+  /**
+   * The app came back to the foreground, or the network changed: check the line straight away.
+   * If the host does not answer quickly the connection is dead (the phone changed network), so reconnect
+   * now instead of waiting for the heartbeat to notice.
+   */
   wake() {
     if (this.status === "closed") return;
     if (!this.sock) { clearTimeout(this.retry); this.open(); return; }
-    this.sock.write(encode({ t: "ping" }));
+    const sock = this.sock;
+    const seen = this.lastSeen;
+    this.ping();
+    clearTimeout(this.probeTimer);
+    this.probeTimer = setTimeout(() => {
+      if (this.status === "closed" || this.sock !== sock || this.lastSeen !== seen) return;
+      this.sock = null;
+      sock.close();
+      this.lost();
+    }, this.online ? 5000 : 2500);
   }
+  private probeTimer: any = null;
   private send(a: Action) { this.sock?.write(encode({ t: "act", a })); }
-  bid(amount: number) { this.send({ type: "bid", id: this.myId, amount }); }
-  pass() { this.send({ type: "pass", id: this.myId }); }
+  /**
+   * Bids and passes show on this phone at once, without waiting for the host's answer.
+   * The host stays the referee: its next update replaces this prediction, whatever it decided.
+   */
+  bid(amount: number) {
+    this.send({ type: "bid", id: this.myId, amount });
+    const s = this.state;
+    if (!s || !s.lot || this.status !== "live" || bidBlocker(s, this.myId, amount) !== null) return;
+    this.state = { ...s, lot: { ...s.lot, bid: amount, bidder: this.myId, remainMs: s.config.timer * 1000, n: s.lot.n + 1, history: [...s.lot.history, { team: this.myId, amount }].slice(-30) } };
+    this.emit();
+  }
+  pass() {
+    this.send({ type: "pass", id: this.myId });
+    const s = this.state;
+    if (!s || !s.lot || this.status !== "live" || s.lot.status !== "open" || s.lot.bidder === this.myId || s.lot.passed.includes(this.myId)) return;
+    this.state = { ...s, lot: { ...s.lot, passed: [...s.lot.passed, this.myId] } };
+    this.emit();
+  }
   react(emoji: string) { this.sock?.write(encode({ t: "react", e: emoji })); }
   setTeam(fr: string) { this.send({ type: "team", id: this.myId, fr }); }
   retain(pids: number[]) { this.send({ type: "retain", id: this.myId, pids }); }
@@ -427,6 +477,7 @@ export class ClientSession extends Base implements Session {
     this.status = "closed";
     clearInterval(this.timer);
     clearTimeout(this.retry);
+    clearTimeout(this.probeTimer);
     const s = this.sock;
     this.sock = null;
     s?.close();

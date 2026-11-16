@@ -22,6 +22,9 @@ const SOCIALS = [
   { icon: "mail", label: "Email", url: `mailto:${SUPPORT_EMAIL}` },
 ];
 const WHATS_NEW = [
+  ["flash", "Instant bids", "Your bid shows the moment you tap; the host confirms it right after."],
+  ["notifications", "Notifications", "Outbid, your shortlisted player is up, the auction started — you are told even when Skelp! is behind another app."],
+  ["wifi", "Stronger connection", "Reconnects at once when the network changes, and shows how good your link to the host is."],
   ["albums", "Players come up in sets", "Marquee first, then Batters Set 1, Bowlers Set 1… the most popular players in the earlier sets."],
   ["star", "Shortlist", "Star the players you want; Skelp! tells you the moment they come up."],
   ["wallet", "Every purse at a glance", "A strip in the arena shows each team's purse and squad, and your safe maximum bid."],

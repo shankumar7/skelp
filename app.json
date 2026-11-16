@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skelp!",
     "slug": "skelp",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "skelp",
@@ -25,7 +25,7 @@
         "android.permission.ACCESS_WIFI_STATE",
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
-      "versionCode": 10,
+      "versionCode": 11,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -93,6 +93,12 @@
       "@react-native-firebase/auth",
       "@react-native-firebase/crashlytics",
       "@react-native-google-signin/google-signin",
+      [
+        "expo-notifications",
+        {
+          "color": "#5B5FEF"
+        }
+      ],
       "./plugins/withSkelpAndroid"
     ],
     "updates": {

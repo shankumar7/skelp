@@ -5,7 +5,13 @@ The IPL-style player auction you play with your friends — offline over Wi-Fi o
 > **Have 1.5?** Open Skelp! and it offers this update itself (or use *About → Check for updates*).
 > **Have 1.4 or earlier?** Uninstall the old Skelp! first, then install this one. This is a one-time step.
 
-### New in 1.8
+### New in 1.9
+- **Instant bids.** Your bid and pass show on your phone the moment you tap; the host's answer follows and stays the final word.
+- **Notifications.** While Skelp! is behind another app you are told when the auction starts, when a shortlisted player comes up, when you are outbid, when you win a player, when a Right to Match needs your answer, and when the auction ends. Hosts are told when someone joins. These are raised by the app itself, so they work for as long as Android keeps Skelp! running in the background.
+- **Stronger connection.** The app reconnects immediately when Wi-Fi returns or the phone switches network, notices a dead link within seconds, and shows signal bars with the delay to the host.
+- **Livelier arena.** The clock beats in the last five seconds, each new player eases in, and there is a small celebration when you win one.
+
+### From 1.8
 - **Players come up in sets**, like the real auction: the marquee set first, then Batters Set 1, All-rounders Set 1, Wicket-keepers Set 1, Bowlers Set 1, then each Set 2 and so on. The most popular players are in the earlier sets. The arena shows the set and the player's place in it, and the *Players* tab is grouped by set.
 - **Shortlist.** Star players in the pool or in the arena; you get an alert the moment one of them comes up.
 - **Every purse at a glance.** A strip under the bid shows each team's purse and squad size, who is leading and who has passed.
