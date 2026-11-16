@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { overseasCap, retainBlocker, retainPrice, State } from "@/game/engine";
 import { formatMoney } from "@/game/money";
@@ -10,7 +10,13 @@ import { T, themed } from "./theme";
 import { Backdrop, BigButton, Card, Chip, Column, confirm, k, RoundButton, s, SectionTitle } from "./ui";
 
 /** Before the hammer: every team decides which of last season's players to keep. */
-export function Retention({ session, state, insets, onExit }: { session: Session; state: State; insets: any; onExit: () => void }) {
+export function Retention({ session, state, stamp, insets, onExit }: { session: Session; state: State; stamp: number; insets: any; onExit: () => void }) {
+  // count down locally between updates from the host
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
   const me = state.teams.find((t) => t.id === session.myId);
   const offers = me ? state.offers[me.id] ?? [] : [];
   const decided = me ? me.id in state.picks : true;
@@ -20,7 +26,7 @@ export function Retention({ session, state, insets, onExit }: { session: Session
   const ordered = chosen.slice().sort((a, b) => getPlayer(b).rating - getPlayer(a).rating || a - b);
   const cost = ordered.reduce((n, _, i) => n + retainPrice(state.config, i), 0);
   const blocker = me ? retainBlocker(state, me.id, ordered) : null;
-  const seconds = Math.max(0, Math.ceil(state.retainMs / 1000));
+  const seconds = Math.max(0, Math.ceil((state.retainMs - Math.max(0, now - stamp)) / 1000));
   const waitingFor = state.teams.filter((t) => !(t.id in state.picks) && (t.isBot || t.connected));
   const toggle = (pid: number) => setChosen((list) => (list.includes(pid) ? list.filter((p) => p !== pid) : list.length >= max ? list : [...list, pid]));
 

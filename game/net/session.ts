@@ -9,6 +9,7 @@ import { BOT_AVATARS, BOT_NAMES, BotBrain } from "../bots";
 import { Action, Config, createState, MAX_TEAMS, reduce, State } from "../engine";
 import { CUSTOM_ID, MAX_CUSTOM, PLAYERS, registerCustom, Role } from "../players";
 import { ArenaInfo, ClientMsg, decode, encode, PORT, PROTOCOL, REACTIONS, ServerMsg } from "./protocol";
+import { claimCode, Db, infoOf, makeOnlineTransport, setInfo } from "./online";
 import { Listener, Sock, Transport } from "./transport";
 
 export type Status = "connecting" | "live" | "reconnecting" | "closed";
@@ -18,6 +19,8 @@ export interface Session {
   readonly isHost: boolean;
   readonly myId: string;
   readonly lan: boolean;
+  /** the arena's online code when it is played over the internet, else null */
+  readonly online: string | null;
   getState(): State | null;
   getStatus(): Status;
   /** ms timestamp (local clock) of the last state update — used to animate the countdown */
@@ -78,12 +81,17 @@ const TICK_MS = 200;
 const MAX_CONNECTIONS = 40;
 const SAFE_AVATAR = /^[a-z][a-z-]{0,30}$/;
 const DEAD_AFTER_MS = 8000;
+/** over the internet: slower heartbeats and fewer full updates, to stay well inside the free data allowance */
+export const ONLINE_TIMING = { syncMs: 4000, deadMs: 20000, pingMs: 4000, silentMs: 16000 };
 
 export class HostSession extends Base implements Session {
   readonly isHost = true;
   readonly myId: string;
   lan = false;
+  online: string | null = null;
   port = PORT;
+  private syncMs = 1000;
+  private deadMs = DEAD_AFTER_MS;
   private state: State;
   private status: Status = "live";
   private brain: BotBrain;
@@ -91,6 +99,7 @@ export class HostSession extends Base implements Session {
   private listener: Listener | null = null;
   private peers = new Map<Sock, { id: string | null; seen: number; lastReact: number }>();
   private sinceSync = 0;
+  private sinceEmit = 0;
   private lastTick = Date.now();
   private botSeq = 0;
 
@@ -111,6 +120,25 @@ export class HostSession extends Base implements Session {
     this.lan = true;
   }
 
+  /** Open the arena to players anywhere, through the realtime database. Resolves with the arena code. */
+  async serveOnline(db: Db): Promise<string> {
+    const code = await claimCode(db, infoOf(this.state, db.uid), this.rnd);
+    this.syncMs = ONLINE_TIMING.syncMs;
+    this.deadMs = ONLINE_TIMING.deadMs;
+    this.listener = await makeOnlineTransport(db, code).listen(0, (sock) => this.onConn(sock));
+    this.online = code;
+    this.lan = true;
+    // keep the public card (teams, phase) fresh for people looking the code up
+    let last = "";
+    this.subscribe(() => {
+      if (this.status === "closed") return;
+      const s = this.state;
+      const key = `${s.teams.length}:${s.phase}:${s.config.mode}`;
+      if (key !== last) { last = key; setInfo(db, code, infoOf(s, db.uid)); }
+    });
+    return code;
+  }
+
   getState() { return this.state; }
   getStatus() { return this.status; }
 
@@ -128,12 +156,14 @@ export class HostSession extends Base implements Session {
     const dt = Math.min(1000, now - this.lastTick);
     this.lastTick = now;
     // drop phones that went silent (walked out of Wi-Fi range, app killed, ...)
-    for (const [sock, peer] of this.peers) if (now - peer.seen > DEAD_AFTER_MS) sock.close();
+    for (const [sock, peer] of this.peers) if (now - peer.seen > this.deadMs) sock.close();
     if (this.state.phase === "retention") {
       const was = this.state;
       this.apply({ type: "tick", dt }, false);
       this.sinceSync += dt;
-      if (this.state.phase !== was.phase || this.sinceSync >= 1000) { this.sinceSync = 0; this.broadcast(); this.emit(); }
+      this.sinceEmit += dt;
+      if (this.state.phase !== was.phase || this.sinceSync >= this.syncMs) { this.sinceSync = 0; this.sinceEmit = 0; this.broadcast(); this.emit(); }
+      else if (this.sinceEmit >= 1000) { this.sinceEmit = 0; this.emit(); }
       return;
     }
     if (this.state.phase !== "auction") return;
@@ -148,9 +178,15 @@ export class HostSession extends Base implements Session {
     const changed = s.lot?.pid !== before.lot?.pid || s.lot?.status !== before.lot?.status || s.lot?.bid !== before.lot?.bid ||
       s.lot?.bidder !== before.lot?.bidder || s.lot?.passed.length !== before.lot?.passed.length || s.lot?.n !== before.lot?.n || s.phase !== before.phase;
     this.sinceSync += dt;
-    if (changed || this.sinceSync >= 1000) {
+    this.sinceEmit += dt;
+    if (changed || this.sinceSync >= this.syncMs) {
       this.sinceSync = 0;
+      this.sinceEmit = 0;
       this.broadcast();
+      this.emit();
+    } else if (this.sinceEmit >= 1000) {
+      // the host's own screen refreshes every second even when the network update is less frequent
+      this.sinceEmit = 0;
       this.emit();
     }
   }
@@ -269,7 +305,10 @@ const SILENT_MS = 7000;
 export class ClientSession extends Base implements Session {
   readonly isHost = false;
   readonly lan = true;
+  readonly online: string | null;
   readonly myId: string;
+  private pingMs: number;
+  private silentMs: number;
   error: string | null = null;
   private state: State | null = null;
   private status: Status = "connecting";
@@ -278,11 +317,15 @@ export class ClientSession extends Base implements Session {
   private lastSeen = Date.now();
   private retry: any = null;
 
-  constructor(private transport: Transport, private host: string, private me: Me, private port = PORT) {
+  /** `online`: the transport is the internet relay and `host` is the arena code. */
+  constructor(private transport: Transport, private host: string, private me: Me, private port = PORT, online = false) {
     super();
     this.myId = me.id;
+    this.online = online ? host : null;
+    this.pingMs = online ? ONLINE_TIMING.pingMs : PING_MS;
+    this.silentMs = online ? ONLINE_TIMING.silentMs : SILENT_MS;
     this.open();
-    this.timer = setInterval(() => this.heartbeat(), PING_MS);
+    this.timer = setInterval(() => this.heartbeat(), this.pingMs);
   }
 
   getState() { return this.state; }
@@ -290,7 +333,7 @@ export class ClientSession extends Base implements Session {
 
   private open() {
     if (this.status === "closed") return;
-    this.transport.connect(this.host, this.port, 4000).then(
+    this.transport.connect(this.host, this.port, this.online ? 8000 : 4000).then(
       (sock) => {
         if (this.status === "closed") return sock.close();
         this.sock = sock;
@@ -326,7 +369,7 @@ export class ClientSession extends Base implements Session {
     if (!this.state) {
       // never got in — if the very first attempts fail, give up with a clear message
       this.attempts++;
-      if (this.attempts >= 3) return this.fail("Could not reach the host. Are you on the same Wi-Fi / hotspot?");
+      if (this.attempts >= 3) return this.fail(this.online ? "Could not reach the arena. Check your internet connection." : "Could not reach the host. Are you on the same Wi-Fi / hotspot?");
     }
     if (this.state?.phase === "done") return; // auction finished, nothing to get back to
     this.status = this.state ? "reconnecting" : "connecting";
@@ -343,7 +386,7 @@ export class ClientSession extends Base implements Session {
 
   private heartbeat() {
     if (this.status === "closed" || !this.sock) return;
-    if (Date.now() - this.lastSeen > SILENT_MS) {
+    if (Date.now() - this.lastSeen > this.silentMs) {
       const dead = this.sock;
       this.sock = null;
       dead.close();
@@ -479,15 +522,17 @@ export function scan(transport: Transport, myIp: string | null, onFound: (a: Are
 }
 
 /** What the host's QR code says. The address is left out when the host does not know its own (it is the hotspot). */
-export function makeJoinLink(hostIp: string | null, port = PORT): string {
+export function makeJoinLink(hostIp: string | null, port = PORT, online: string | null = null): string {
+  if (online) return `skelp://join?o=${online}`;
   return hostIp ? `skelp://join?h=${hostIp}&p=${port}` : `skelp://join?p=${port}`;
 }
 /** Read a scanned QR code. Returns null when it is not a Skelp! arena code. */
-export function parseJoinLink(text: string): { host: string | null; port: number } | null {
+export function parseJoinLink(text: string): { host: string | null; port: number; online?: string } | null {
   const m = /^skelp:\/\/join\?(.*)$/i.exec(String(text).trim().slice(0, 200));
   if (!m) return null;
   const params: Record<string, string> = {};
   for (const part of m[1].split("&")) { const [k, v = ""] = part.split("="); params[k] = v; }
+  if (params.o !== undefined) return /^[A-Z0-9]{6}$/.test(params.o.toUpperCase()) ? { host: null, port: PORT, online: params.o.toUpperCase() } : null;
   const host = params.h && /^\d{1,3}(\.\d{1,3}){3}$/.test(params.h) && params.h.split(".").every((n) => +n <= 255) ? params.h : null;
   const port = /^\d{2,5}$/.test(params.p ?? "") && +params.p > 0 && +params.p < 65536 ? +params.p : PORT;
   return { host, port };

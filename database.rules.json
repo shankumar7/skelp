@@ -1,0 +1,27 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "arenas": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('info/hostUid').val() === auth.uid || data.child('info/ts').val() < now - 86400000)",
+        ".validate": "$code.matches(/^[A-Z0-9]{6}$/) && newData.hasChild('info')",
+        "info": {
+          ".validate": "newData.child('hostUid').val() === auth.uid && newData.child('arena').isString() && newData.child('arena').val().length <= 40 && newData.child('ts').isNumber()"
+        },
+        "s": {
+          ".validate": "newData.isString() && newData.val().length < 200000"
+        },
+        "c": {
+          "$conn": {
+            ".write": "auth != null && root.child('arenas/' + $code + '/info').exists() && (data.exists() ? data.child('meta/uid').val() === auth.uid : newData.child('meta/uid').val() === auth.uid)",
+            ".validate": "newData.hasChild('meta')",
+            "u": { "$msg": { ".validate": "newData.isString() && newData.val().length <= 4000" } },
+            "d": { "$msg": { ".validate": "newData.isString() && newData.val().length <= 4000" } }
+          }
+        }
+      }
+    }
+  }
+}

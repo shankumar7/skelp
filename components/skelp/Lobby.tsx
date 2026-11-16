@@ -1,5 +1,5 @@
 import { T, themed } from "@/components/skelp/theme";
-import { ScrollView, Text, View, Pressable, StyleSheet, TextInput } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, Share } from "react-native";
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,7 +32,9 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
   }, []);
   const host = session.isHost;
   const cfg = state.config;
-  const code = ip ? ip.split(".")[3] : null;
+  const online = session.online;
+  const code = online ?? (ip ? ip.split(".")[3] : null);
+  const invite = () => Share.share({ message: `Join my Skelp! auction 🏏\nOpen Skelp!, tap the arena code box and type: ${online}\n\nNo app yet? https://github.com/shankumar7/skelp/releases/latest/download/skelp.apk` }).catch(() => {});
   const canStart = state.teams.length >= 2;
   const me = state.teams.find((t) => t.id === session.myId);
   const auctioneer = host && !me;
@@ -59,19 +61,19 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
           <View style={wide ? { flex: 1 } : null}>
             <LinearGradient colors={T.gradHero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.hero, { marginTop: 18 }]}>
               <View style={st.heroRing} />
-              <Ionicons name={session.lan ? (auctioneer ? "tv" : "wifi") : "game-controller"} size={140} color="rgba(255,255,255,0.10)" style={st.heroIcon} />
-              <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>{session.lan ? (auctioneer ? "AUCTIONEER SCREEN" : host ? "YOU ARE THE HOST" : "CONNECTED TO HOST") : "SOLO PRACTICE"}</Text></View>
+              <Ionicons name={session.lan ? (auctioneer ? "tv" : online ? "globe" : "wifi") : "game-controller"} size={140} color="rgba(255,255,255,0.10)" style={st.heroIcon} />
+              <View style={s.arenaCategoryBadge}><Text style={s.arenaCategoryText}>{session.lan ? `${online ? "ONLINE • " : ""}${auctioneer ? "AUCTIONEER SCREEN" : host ? "YOU ARE THE HOST" : "CONNECTED TO HOST"}` : "SOLO PRACTICE"}</Text></View>
               {session.lan && host ? (
                 <>
                   <Text style={st.codeLabel}>ARENA CODE</Text>
-                  <Text style={[s.arenaPlayerName, { fontSize: 48 }]}>{code ? `#${code}` : "HOTSPOT"}</Text>
-                  <Text style={s.arenaPlayerMeta}>{ip ? `HOST ADDRESS ${ip}` : "YOUR PHONE IS THE HOTSPOT / NO WI-FI ADDRESS"}</Text>
-                  <Text style={st.hint}>{auctioneer ? "This screen runs the auction. Everyone joins and bids from their own phone." : "No internet needed. Everyone just has to be on the same Wi-Fi or on your hotspot."}</Text>
+                  <Text style={[s.arenaPlayerName, { fontSize: 48 }]} selectable>{online ? online : code ? `#${code}` : "HOTSPOT"}</Text>
+                  <Text style={s.arenaPlayerMeta}>{online ? "FRIENDS ANYWHERE JOIN WITH THIS CODE" : ip ? `HOST ADDRESS ${ip}` : "YOUR PHONE IS THE HOTSPOT / NO WI-FI ADDRESS"}</Text>
+                  <Text style={st.hint}>{online ? "Everyone needs the internet. Keep Skelp! open on this phone — it runs the auction." : auctioneer ? "This screen runs the auction. Everyone joins and bids from their own phone." : "No internet needed. Everyone just has to be on the same Wi-Fi or on your hotspot."}</Text>
                 </>
               ) : (
                 <>
                   <Text style={[s.arenaPlayerName, { fontSize: 34 }]}>{session.lan ? "YOU'RE IN!" : "YOU VS BOTS"}</Text>
-                  <Text style={st.hint}>{session.lan ? "Waiting for the host to start the auction. Keep the app open." : "Warm up against AI bidders. Add or remove bots, pick a mode and start."}</Text>
+                  <Text style={st.hint}>{session.lan ? `Waiting for the host to start the auction. Keep the app open${online ? " and stay online" : ""}.` : "Warm up against AI bidders. Add or remove bots, pick a mode and start."}</Text>
                 </>
               )}
             </LinearGradient>
@@ -80,14 +82,24 @@ export function Lobby({ session, state, insets, onExit }: { session: Session; st
               <Card style={{ marginTop: 16 }}>
                 <Text style={k.label}>HOW FRIENDS JOIN</Text>
                 <View style={{ flexDirection: "row" }}>
-                  <View style={st.qrBox}><QrCode value={makeJoinLink(ip)} size={132} /></View>
+                  <View style={st.qrBox}><QrCode value={makeJoinLink(ip, undefined, online)} size={132} /></View>
                   <View style={{ flex: 1, marginLeft: 16, justifyContent: "center" }}>
+                    {online ? (
+                      <>
+                        <Step n={1} text="Send your friends the code — tap SHARE INVITE below." />
+                        <Step n={2} text={`In Skelp! they type ${online} in the arena code box.`} />
+                        <Step n={3} text="Sitting together? They can tap SCAN TO JOIN and point at this code." />
+                      </>
+                    ) : (
+                      <>
                     <Step n={1} text={ip ? "Everyone joins the same Wi-Fi as you — or turn on your hotspot and let them connect to it." : "Turn on your mobile hotspot and tell your friends its name and password."} />
                     <Step n={2} text="They connect to it from their Wi-Fi settings." />
                     <Step n={3} text={`In Skelp! they tap SCAN TO JOIN and point at this code${code ? `, or type code ${code}` : ", or tap NEARBY"}.`} />
+                      </>
+                    )}
                   </View>
                 </View>
-                <SoftButton title="OPEN HOTSPOT SETTINGS" icon="wifi" color={T.primaryText} style={{ marginTop: 14 }} onPress={openHotspotSettings} />
+                {online ? <BigButton title="SHARE INVITE" icon="share-social" small style={{ marginTop: 14 }} onPress={invite} /> : <SoftButton title="OPEN HOTSPOT SETTINGS" icon="wifi" color={T.primaryText} style={{ marginTop: 14 }} onPress={openHotspotSettings} />}
               </Card>
             )}
 

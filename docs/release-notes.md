@@ -1,10 +1,16 @@
-The IPL-style player auction you play with your friends. Auctions run fully offline.
+The IPL-style player auction you play with your friends — offline over Wi-Fi or a hotspot, or online with a code.
 
 **Download `skelp.apk` below**, open it on your Android phone (7.0 or newer) and allow *Install unknown apps*.
 
-> **Updating from 1.4 or earlier? Uninstall the old Skelp! first, then install this one.** From 1.5 the app is signed with its own private key, so Android will not install it over an older copy. This is a one-time step: from now on Skelp! updates itself. Sign in again afterwards to get your backed-up stats back (guest profiles stay with the old copy).
+> **Have 1.5?** Open Skelp! and it offers this update itself (or use *About → Check for updates*).
+> **Have 1.4 or earlier?** Uninstall the old Skelp! first, then install this one. This is a one-time step.
 
-### New in 1.5
+### New in 1.6
+- **Play online.** Host an arena for friends anywhere: choose *Anywhere • Online* when hosting, share the six-character code (or the invite message), and friends type it in the arena code box. The host's phone still runs the auction; Firebase only relays the messages.
+- No account needed for online play — guests work too.
+- Wi-Fi and hotspot play is unchanged and still needs no internet.
+
+### From 1.5
 - **In-app updates.** Skelp! checks for a new version when it opens (and from *About → Check for updates*), shows what is new, downloads it and opens Android's installer.
 - **Right to Match and retentions.** Optionally give every team a squad from "last season": keep up to three players at fixed prices before the auction, and use RTM cards to take a former player back at the winning bid.
 - **Auctioneer mode.** Put the auction on a tablet or a spare phone as the big screen while everyone bids from their own phone.
@@ -21,6 +27,7 @@ The IPL-style player auction you play with your friends. Auctions run fully offl
 - Anonymous crash reports (Firebase Crashlytics) to help fix bugs.
 
 ### Good to know
-- One phone hosts, the rest join over the same Wi-Fi or hotspot; auctions never need the internet
-- Everyone in an arena needs version 1.5
+- Nearby: one phone hosts, the rest join over the same Wi-Fi or hotspot; no internet needed
+- Online: everyone needs the internet, and the host shares the arena code
+- Everyone in an arena needs the same version
 - The host phone must keep Skelp! open during an auction

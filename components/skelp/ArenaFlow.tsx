@@ -73,7 +73,7 @@ export function ArenaFlow({ session, insets, onExit, onFinished }: { session: Se
       </View>
     );
   }
-  if (phase === "retention") return <Retention session={session} state={state} insets={insets} onExit={askLeave} />;
+  if (phase === "retention") return <Retention session={session} state={state} stamp={snapshot.stamp} insets={insets} onExit={askLeave} />;
   if (phase === "lobby") return <Lobby session={session} state={state} insets={insets} onExit={askLeave} />;
   return <Arena session={session} snapshot={snapshot} insets={insets} onExit={askLeave} />;
 }

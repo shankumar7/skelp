@@ -22,6 +22,7 @@ const SOCIALS = [
   { icon: "mail", label: "Email", url: `mailto:${SUPPORT_EMAIL}` },
 ];
 const WHATS_NEW = [
+  ["globe", "Play online", "Host an arena for friends anywhere: they join over the internet with a six-character code."],
   ["sync", "In-app updates", "Skelp! checks for new versions and installs them for you."],
   ["card", "Right to Match & retentions", "Keep last season's stars, or match the winning bid with an RTM card."],
   ["tv", "Auctioneer mode", "Put the auction on a shared screen while everyone bids from their phone."],
@@ -72,12 +73,12 @@ export function About({ onBack, insets }: { onBack: () => void; insets: any }) {
               <Text style={k.body}>
                 Skelp! is the IPL-style player auction you play with your friends. Everyone gets the same purse, real players come under the hammer one by one, the clock ticks, and the highest bid takes the player home.
                 {"\n\n"}
-                Auctions run fully offline: one phone hosts the arena and everyone on the same Wi-Fi or mobile hotspot joins it, phone to phone. Create a free account to back up your stats, or simply play as a guest.
+                Play nearby with no internet at all: one phone hosts the arena and everyone on the same Wi-Fi or mobile hotspot joins it, phone to phone. Or play online with friends anywhere using an arena code. Create a free account to back up your stats, or simply play as a guest.
               </Text>
               <View style={st.facts}>
                 <Fact v={String(PLAYERS.length)} l="PLAYERS" />
                 <Fact v="10" l="TEAMS" />
-                <Fact v="0" l="INTERNET NEEDED" />
+                <Fact v="2" l="WAYS TO PLAY" />
               </View>
             </Card>
           </Rise>
@@ -134,7 +135,7 @@ export function About({ onBack, insets }: { onBack: () => void; insets: any }) {
           <SectionTitle title="GOOD TO KNOW" />
           <Rise delay={280}>
             <Card pad={18}>
-              <ListRow icon="lock-closed" color={T.mint} title="Privacy" sub="Auctions never leave your network. Accounts are optional; with one, your name, avatar and stats are backed up to Firebase. No ads. Anonymous crash reports help fix bugs." />
+              <ListRow icon="lock-closed" color={T.mint} title="Privacy" sub="Wi-Fi auctions never leave your network; online auctions are relayed through Firebase and deleted when the arena closes. Accounts are optional. No ads. Anonymous crash reports help fix bugs." />
               <ListRow icon="document-text" color={T.primary} title="MIT licence" sub="The source code is free to read, use and change." onPress={() => open("https://github.com/shankumar7/skelp")} />
               <ListRow icon="help-buoy" color={T.gold} title="Help and feedback" sub={SUPPORT_EMAIL} onPress={() => open(`mailto:${SUPPORT_EMAIL}`)} />
               <ListRow icon="images" color={T.coral} title="Player photos" sub={`${CREDITS.length} photos from Wikimedia Commons, used under their free licences. Tap for the credits.`} onPress={() => setShowCredits(!showCredits)} right={<Ionicons name={showCredits ? "chevron-up" : "chevron-down"} size={18} color={T.dim} />} last />
