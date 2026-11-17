@@ -39,7 +39,7 @@ to that phone's **mobile hotspot** — joins it directly, phone to phone.
 <p align="center">
   <a href="https://github.com/shankumar7/skelp/blob/main/video_project/output/final_promo.mp4"><img src="docs/promo-preview.gif" width="640" alt="Skelp! promo video: tap to watch the full 60 seconds" /></a>
   <br />
-  <sub>▶ <a href="https://github.com/shankumar7/skelp/blob/main/video_project/output/final_promo.mp4"><b>Watch the 60-second promo video</b></a> — made with Python and FFmpeg from the real app (<a href="video_project">source</a>)</sub>
+  <sub>▶ <a href="https://github.com/shankumar7/skelp/blob/main/video_project/output/final_promo.mp4"><b>Watch the 60-second promo video</b></a> — made from the real app (<a href="video_project">source</a>)</sub>
 </p>
 
 ## Contents
