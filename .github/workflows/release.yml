@@ -2,11 +2,14 @@ name: Publish release
 
 # Publishes a GitHub release whenever the app version in app.json changes on main (or when run by hand).
 #
-# If the signing secrets are set (Settings -> Secrets and variables -> Actions):
-#   SKELP_KEYSTORE_BASE64     the release keystore, base64-encoded
-#   SKELP_KEYSTORE_PASSWORD   its password
-# the APK is built from source here, signed with the release key and attached to the release.
-# Without them - or if that build fails - the APK committed at release/skelp.apk is published instead.
+# Secrets used (Settings -> Secrets and variables -> Actions). None of these are in the repository.
+#   SKELP_KEYSTORE_BASE64              the release keystore, base64-encoded
+#   SKELP_KEYSTORE_PASSWORD            its password
+#   GOOGLE_SERVICES_JSON_BASE64        the app's google-services.json, base64-encoded
+#   GOOGLE_WEB_CLIENT_ID               the Google sign-in "Web client" ID
+#   SKELP_CERT_SHA256                  SHA-256 of the release signing certificate (optional; checked before publishing)
+# With the first four set, the APK is built from source here, signed and attached to the release.
+# Otherwise - or if that build fails - the APK committed at release/skelp.apk is published.
 on:
   push:
     branches: [main]
@@ -16,10 +19,6 @@ on:
 permissions:
   contents: write
 
-# every Skelp! release must carry this signing certificate, or phones will refuse to update
-env:
-  RELEASE_CERT_SHA256: removed
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -27,12 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for the signing key
+      - name: Check for the build secrets
         id: key
         env:
           KEYSTORE: ${{ secrets.SKELP_KEYSTORE_BASE64 }}
+          GSERVICES: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          WEBCLIENT: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
         run: |
-          if [ -n "$KEYSTORE" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "::notice::No signing secrets - publishing the committed APK."; fi
+          if [ -n "$KEYSTORE" ] && [ -n "$GSERVICES" ] && [ -n "$WEBCLIENT" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "::notice::Build secrets not set - publishing the committed APK."; fi
 
       - uses: actions/setup-node@v4
         if: steps.key.outputs.present == 'true'
@@ -53,8 +54,11 @@ jobs:
         env:
           KEYSTORE: ${{ secrets.SKELP_KEYSTORE_BASE64 }}
           SKELP_KEYSTORE_PASSWORD: ${{ secrets.SKELP_KEYSTORE_PASSWORD }}
+          GSERVICES: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
         run: |
           set -euo pipefail
+          echo "$GSERVICES" | base64 -d > google-services.json
           npm ci
           npm test
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/skelp-release.jks"
@@ -68,11 +72,15 @@ jobs:
           git checkout -- release/skelp.apk
 
       - name: Check the APK signature
+        env:
+          EXPECTED: ${{ secrets.SKELP_CERT_SHA256 }}
         run: |
           tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           cert=$("$tools/apksigner" verify --print-certs release/skelp.apk | grep -i "SHA-256" | head -1 | awk '{print $NF}')
-          echo "APK certificate: $cert"
-          if [ "$cert" != "$RELEASE_CERT_SHA256" ]; then echo "::error::release/skelp.apk is not signed with the Skelp! release key."; exit 1; fi
+          if [ -z "$EXPECTED" ]; then echo "::warning::SKELP_CERT_SHA256 is not set - skipping the signature check."; exit 0; fi
+          expected=$(echo "$EXPECTED" | tr -d ': ' | tr 'A-F' 'a-f')
+          if [ "$cert" != "$expected" ]; then echo "::error::release/skelp.apk is not signed with the Skelp! release key."; exit 1; fi
+          echo "Signed with the release key."
 
       - name: Create the release if this version has none yet
         env:

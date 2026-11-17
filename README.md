@@ -149,13 +149,13 @@ Works on Android 7.0 and newer, on both 64-bit and older 32-bit ARM phones.
 ## Privacy and security
 
 - **Wi-Fi auctions stay on your network.** Bids, squads and the auction itself travel only between the phones in the arena, never over the internet.
-- **Online auctions are relayed, not kept.** They pass through Firebase Realtime Database under the arena's code and are deleted when the host closes the arena. Only someone who has the code can read an arena, and only the host can change it. See [`database.rules.json`](database.rules.json). Guests are signed in anonymously for this.
+- **Online auctions are relayed, not kept.** They pass through Firebase Realtime Database under the arena's code and are deleted when the host closes the arena. Only someone who has the code can read an arena, and only the host can change it. Guests are signed in anonymously for this.
 - **Accounts are optional.** Guests are stored only on the phone. With an account, the app keeps your username, avatar, stats and last ten auction results in Firebase (Google Cloud), linked to your email address, and syncs them whenever the phone is online. Delete the account at any time from the dashboard; that removes the backed-up data too.
 - **No ads and no tracking.** If the app crashes, an anonymous crash report (device model, Android version and the error — no name, email or auction data) is sent through Firebase Crashlytics the next time the phone is online.
 - **Updates come from this repository.** The app asks GitHub for the latest release and only ever downloads the APK attached to it; Android then refuses anything that is not signed with the Skelp! release key.
 - **Google sign-in** only shares your name and email address with the app.
 - **Account emails come from Firebase.** Email confirmation and password reset are sent by Firebase Authentication; the app holds no mail-server password.
-- **Each player can only read and write their own data.** See [`firestore.rules`](firestore.rules).
+- **Each player can only read and write their own data.** Firebase security rules enforce this on the server.
 - **The host is the referee.** Other phones can only bid or pass for their own team; every action is validated on the host, and nobody can act for another team or send host commands.
 - **Untrusted input is bounded.** Names, avatars and ids from other phones are length-checked and sanitised, oversized messages drop the connection, reactions are rate-limited, and phones ignore malformed data from a host.
 - **Minimal permissions:** internet and network state, Wi-Fi state (to find the host), vibration, notifications (asked the first time you enter an arena; shown only for your own auction), installing packages (only to hand a downloaded Skelp! update to Android's installer, which still asks you), and the camera — asked for only when you tap *Scan to join*, and used only to read the code. No location, storage, contacts or microphone.
@@ -181,21 +181,22 @@ LAN play and sound need native code, so use a development build or the APK rathe
 
 ### Firebase setup (project owners)
 
-Online accounts use the Firebase project in `google-services.json` (`your-firebase-project`, Android app `com.classcom.skelp`). In the [Firebase console](https://console.firebase.google.com/project/your-firebase-project):
+Online accounts, backup and online play use Firebase. The project's configuration is **private and not in this repository**:
 
-1. **Authentication** → *Get started* → *Sign-in method* → enable **Email/Password** and **Google**.
-   For Google, also add the app's signing fingerprint in **Project settings → Your apps → Skelp! (Android) → Add fingerprint**:
-   - SHA-1 `(removed)`
-   - SHA-256 `(removed)`
+| Private file (git-ignored) | What it is |
+| --- | --- |
+| `google-services.json` | the Android app's Firebase configuration (Firebase console → Project settings → Your apps → download) |
+| `.env.local` | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=…` — the Google sign-in "Web client" ID (Authentication → Sign-in method → Google → Web SDK configuration) |
+| `firestore.rules`, `database.rules.json` | the Firestore and Realtime Database security rules, published from the Firebase console |
 
-   These belong to the Skelp! release key that every APK from 1.5 on is signed with.
-2. **Firestore Database** → *Create database* → production mode, a nearby location (for India, `asia-south1` Mumbai).
-3. **Firestore Database → Rules** → paste [`firestore.rules`](firestore.rules) → *Publish*.
-4. **Realtime Database** → *Create database* (any location) → *Rules* → paste [`database.rules.json`](database.rules.json) → *Publish*. Under **Authentication → Sign-in method**, enable **Anonymous** so guests can play online. Until this is done the app says "Online play is not switched on yet".
-5. **Crashlytics** → *Get started* (crash reports appear after the first crash is reported).
-6. Optional: **Authentication → Templates** → set the sender name (e.g. *Skelp!*) for the confirmation and password-reset emails.
+To build your own copy, create your own Firebase project and put your own files in their place. In the Firebase console:
 
-Until steps 1 and 2 are done, the app shows "Online accounts are not switched on yet" and players can still play as guests.
+1. **Authentication** → *Sign-in method* → enable **Email/Password**, **Google** and **Anonymous**. For Google, add your signing key's SHA-1 and SHA-256 under **Project settings → Your apps → Add fingerprint** (`keytool -list -v -keystore your-key.jks` prints them).
+2. **Firestore Database** and **Realtime Database** → *Create database*, then publish your rules in each one's *Rules* tab. Rules must only let a signed-in player read and write their own profile, and only let an arena's host change that arena.
+3. **Crashlytics** → *Get started*.
+4. Recommended: in Google Cloud console → *APIs & Services → Credentials*, restrict the Android API key to your package name and SHA-1, and in **Authentication → Settings** keep the sign-up quota low.
+
+Until this is done, the app shows "Online accounts are not switched on yet" and players can still play as guests and on Wi-Fi.
 
 ### Build the APK
 
@@ -217,14 +218,17 @@ Without it the APK is debug-signed: fine for testing, but it cannot update an in
 
 ### Automatic releases
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) publishes a GitHub release whenever the version in `app.json` changes on `main`. With two repository secrets set (**Settings → Secrets and variables → Actions**) it builds the APK from source, signs it and attaches it:
+[`.github/workflows/release.yml`](.github/workflows/release.yml) publishes a GitHub release whenever the version in `app.json` changes on `main`. With these repository secrets set (**Settings → Secrets and variables → Actions**) it builds the APK from source, signs it and attaches it:
 
 | Secret | Value |
 | --- | --- |
 | `SKELP_KEYSTORE_BASE64` | the release keystore, base64-encoded |
 | `SKELP_KEYSTORE_PASSWORD` | its password |
+| `GOOGLE_SERVICES_JSON_BASE64` | `google-services.json`, base64-encoded |
+| `GOOGLE_WEB_CLIENT_ID` | the Google sign-in Web client ID |
+| `SKELP_CERT_SHA256` | optional: the release certificate's SHA-256; the workflow refuses an APK signed with anything else |
 
-Without the secrets it publishes the APK committed at `release/skelp.apk`. Either way the workflow refuses to publish an APK that is not signed with the release key.
+Without them it publishes the APK committed at `release/skelp.apk`.
 
 ### Project layout
 

@@ -9,11 +9,13 @@ import { Db } from "./online";
 
 export const onlineAvailable = true;
 
+/** The Firebase project this build belongs to — read from the private google-services.json at bundle time. */
+const PROJECT: string = require("../../google-services.json").project_info.project_id;
 /** Where the project's database can live, most likely first (it is created in the Firebase console). */
 const CANDIDATES = [
-  "https://your-firebase-project-default-rtdb.asia-southeast1.firebasedatabase.app",
-  "https://your-firebase-project-default-rtdb.firebaseio.com",
-  "https://your-firebase-project-default-rtdb.europe-west1.firebasedatabase.app",
+  `https://${PROJECT}-default-rtdb.asia-southeast1.firebasedatabase.app`,
+  `https://${PROJECT}-default-rtdb.firebaseio.com`,
+  `https://${PROJECT}-default-rtdb.europe-west1.firebasedatabase.app`,
 ];
 let found: string | null = null;
 

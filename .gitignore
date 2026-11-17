@@ -46,3 +46,10 @@ app-example
 *.jks
 *.keystore
 *.p12
+
+# Private Firebase setup - kept out of the public repository (see README > Firebase setup)
+google-services.json
+firestore.rules
+database.rules.json
+firebase.json
+.firebaserc

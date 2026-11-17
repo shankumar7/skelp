@@ -1,5 +1,5 @@
 /**
- * Online accounts and cloud backup through Firebase (project "your-firebase-project").
+ * Online accounts and cloud backup through Firebase (the project in google-services.json).
  *  - Firebase Auth: email + password accounts, or "Continue with Google". Firebase itself sends the account emails
  *    (address verification, password reset) — no mail server or password lives in this app.
  *  - Firestore: one document per player, users/{uid}, holding the profile and stats.
@@ -21,12 +21,17 @@ export const cloudAvailable = true;
 
 const auth = () => getAuth();
 
-/** The OAuth "Web client" Firebase created when Google sign-in was enabled for project your-firebase-project. */
-export const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
+/**
+ * The OAuth "Web client" Firebase created when Google sign-in was enabled. It is not kept in the source:
+ * it comes from EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (in the private .env.local file, or a CI secret) and is
+ * filled in when the app is bundled.
+ */
+export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 let googleReady = false;
 
 /** Show Google's account picker; returns an ID token, or null if the player backed out. */
 async function googleIdToken(): Promise<string | null> {
+  if (!GOOGLE_WEB_CLIENT_ID) throw Object.assign(new Error("no-web-client"), { code: "auth/operation-not-allowed" });
   if (!googleReady) {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
     googleReady = true;

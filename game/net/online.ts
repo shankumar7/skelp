@@ -46,7 +46,7 @@ export function normaliseCode(text: string): string | null {
 }
 
 const base = (code: string) => `arenas/${code}`;
-const MAX_UP = 4000;
+const MAX_UP = 2000; // the database rules refuse longer messages
 const STATE_PREFIX = '{"t":"state"';
 
 function timeout<T>(p: Promise<T>, ms: number): Promise<T> {
